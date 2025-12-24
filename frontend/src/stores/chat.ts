@@ -179,7 +179,6 @@ export const useChatStore = defineStore("chat", {
     },
 
     pushMessage(message: Message) {
-
       const convId = message.conversation_id;
 
       if (!this.messagesByConversation[convId]) {
@@ -263,14 +262,18 @@ export const useChatStore = defineStore("chat", {
             }
           }
         )
-        .listen(".MessageReactionUpdated", (e: {
-          message_id: number;
-          user_id: number;
-          emoji: string | null;
-        }) => {
-          if (e.user_id === userStore.user?.id) return;
-          this.applyReactionUpdate(e.message_id, e.user_id, e.emoji);
-        });
+        .listen(
+          ".MessageReactionUpdated",
+          (e: {
+            conversation_id: number;
+            message_id: number;
+            user_id: number;
+            emoji: string | null;
+          }) => {
+            if (e.user_id === userStore.user?.id) return;
+            this.applyReactionUpdate(e.conversation_id, e.message_id, e.user_id, e.emoji);
+          }
+        );
 
       this.echoChannels.set(conversationId, channel);
     },
@@ -388,84 +391,78 @@ export const useChatStore = defineStore("chat", {
     },
 
     applyReactionUpdate(
+      conversationId: number,
       messageId: number,
       userId: number,
       emoji: string | null
     ) {
-      let msg: Message | null = null;
+      const messages = this.messagesByConversation[conversationId];
+      if (!messages) return;
 
-      for (const msgs of Object.values(this.messagesByConversation)) {
-        const found = msgs.find(m => m.id === messageId);
-        if (found) {
-          msg = found;
-          break;
-        }
+      const index = messages.findIndex((m) => m.id === messageId);
+      if (index === -1) return;
+
+      const msg = messages[index];
+      const oldReactions = msg.reactions ?? {};
+
+      let newReactions: Record<string, number[]> = {};
+
+      // Remove user from all existing emojis
+      for (const [em, users] of Object.entries(oldReactions)) {
+        const filtered = users.filter((id) => id !== userId);
+        if (filtered.length) newReactions[em] = filtered;
       }
 
-      if (!msg) return;
-
-      msg.reactions ||= {};
-
-      // ✅ 1. Remove user from ALL emojis
-      for (const [existingEmoji, users] of Object.entries(msg.reactions)) {
-        if (users.includes(userId)) {
-          msg.reactions[existingEmoji] = users.filter(id => id !== userId);
-
-          if (msg.reactions[existingEmoji].length === 0) {
-            delete msg.reactions[existingEmoji];
-          }
-        }
-      }
-
-      // 2️⃣ Add new emoji (if exists)
+      // Add new emoji if exists
       if (emoji) {
-        msg.reactions[emoji] ||= [];
-        msg.reactions[emoji].push(userId);
+        newReactions[emoji] = [...(newReactions[emoji] || []), userId];
       }
+
+      // Replace message immutably
+      this.messagesByConversation[conversationId] = [
+        ...messages.slice(0, index),
+        { ...msg, reactions: newReactions },
+        ...messages.slice(index + 1),
+      ];
     },
-
-
     toggleReaction(messageId: number, emoji: string) {
       const myId = useUserStore().user?.id;
-      if (!myId) return;
+      const convId = this.activeConversationId;
 
-      let msg: Message | null = null;
+      if (!myId || !convId) return;
 
-      for (const msgs of Object.values(this.messagesByConversation)) {
-        const found = msgs.find(m => m.id === messageId);
-        if (found) {
-          msg = found;
-          break;
+      const messages = this.messagesByConversation[convId];
+      if (!messages) return;
+
+      const index = messages.findIndex((m) => m.id === messageId);
+      if (index === -1) return;
+
+      const msg = messages[index];
+      const oldReactions = msg.reactions ?? {};
+
+      let newReactions: Record<string, number[]> = {};
+
+      // 1️⃣ Remove my reaction from all emojis
+      for (const [em, users] of Object.entries(oldReactions)) {
+        const filtered = users.filter((id) => id !== myId);
+        if (filtered.length) {
+          newReactions[em] = filtered;
         }
       }
 
-      if (!msg) return;
-
-      msg.reactions ||= {};
-
-      if (msg.reactions[emoji]?.includes(myId)) {
-        msg.reactions[emoji] = msg.reactions[emoji].filter(id => id !== myId);
-        if (msg.reactions[emoji].length === 0) {
-          delete msg.reactions[emoji];
-        }
-        return;
+      // 2️⃣ Toggle clicked emoji
+      const hadEmoji = oldReactions[emoji]?.includes(myId);
+      if (!hadEmoji) {
+        newReactions[emoji] = [...(newReactions[emoji] || []), myId];
       }
 
-      for (const [existingEmoji, users] of Object.entries(msg.reactions)) {
-        if (users.includes(myId)) {
-          msg.reactions[existingEmoji] = users.filter(id => id !== myId);
-
-          if (msg.reactions[existingEmoji].length === 0) {
-            delete msg.reactions[existingEmoji];
-          }
-        }
-      }
-
-      // ➕ Add new emoji
-      msg.reactions[emoji] ||= [];
-      msg.reactions[emoji].push(myId);
+      // 3️⃣ Replace message immutably
+      this.messagesByConversation[convId] = [
+        ...messages.slice(0, index),
+        { ...msg, reactions: newReactions },
+        ...messages.slice(index + 1),
+      ];
     },
-
 
     async reactToMessage(messageId: number, emoji: string) {
       this.toggleReaction(messageId, emoji);

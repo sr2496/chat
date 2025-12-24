@@ -50,6 +50,7 @@ class MessageReactionUpdated implements ShouldBroadcast
     public function broadcastWith()
     {
         return [
+            'conversation_id' => $this->conversationId(),
             'message_id' => $this->messageId,
             'user_id' => $this->userId,
             'emoji' => $this->emoji,

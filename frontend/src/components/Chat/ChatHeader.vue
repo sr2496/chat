@@ -34,7 +34,7 @@
                     </span>
                 </p>
 
-                <TypingIndicator v-if="typingText" :typingText="typingText" />
+                <TypingIndicator :key="activeConversation.id" v-if="typingText" :typingText="typingText" />
             </div>
 
         </div>

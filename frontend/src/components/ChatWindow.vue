@@ -40,11 +40,11 @@
                 leave-active-class="transition-all duration-150 ease-in" leave-from-class="opacity-100 translate-y-0"
                 leave-to-class="opacity-0 -translate-y-2">
                 <span v-if="showStickyDate && activeStickyDate" class="px-5 py-1.5 text-xs font-semibold tracking-wider uppercase
-                  text-gray-700 dark:text-gray-200
-                  bg-gray-100 dark:bg-gray-800/90
-                  backdrop-blur-sm
-                  border border-gray-200 dark:border-gray-700
-                  rounded-full shadow-lg">
+                text-gray-700 dark:text-gray-200
+                bg-gray-100 dark:bg-gray-800/90
+                backdrop-blur-sm
+                border border-gray-200 dark:border-gray-700
+                rounded-full shadow-lg">
                   {{ activeStickyDate }}
                 </span>
               </transition>
@@ -52,39 +52,59 @@
 
             <template v-for="(msg, index) in messages" :key="msg.id">
 
-              <!-- Date separator (normal, non-sticky, elegant line) -->
-
-              <DateSeparator :key="index"
+              <!-- Date separator -->
+              <DateSeparator
                 v-if="index === 0 || getMessageDay(msg.created_at) !== getMessageDay(messages[index - 1].created_at)"
                 :day="getMessageDay(msg.created_at)" />
-
 
               <!-- Unread Divider -->
               <div v-if="msg.id === firstUnreadId" class="relative my-4 flex items-center">
                 <div class="h-px flex-grow bg-gray-200 dark:bg-gray-700" />
-                <span class="
-                        mx-4
-                        text-xs font-semibold uppercase tracking-wider
-                        text-gray-500 dark:text-gray-400
-                      ">
+                <span class="mx-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   New messages
                 </span>
                 <div class="h-px flex-grow bg-gray-200 dark:bg-gray-700" />
               </div>
 
+              <!-- Message row with optional avatar + name for group chats -->
+              <div class="flex items-end gap-3 px-4" :class="isSent(msg) ? 'flex-row-reverse' : 'flex-row'">
 
-              <MessageBubble :msg="msg" :isSent="isSent(msg)" :setMessageRef="setMessageRef"
-                :getMessageDay="getMessageDay" :formatTime="formatTime"
-                :groupedReactions="groupedReactions" @openImage="openImageModal" @openReaction="openReactionPicker" />
+                <!-- Avatar (only shown for received messages in group chats) -->
+                <div v-if="!isSent(msg) && isGroup" class="flex-shrink-0 mb-6">
+                  <!-- Actual image if available -->
+                  <img v-if="msg.sender.avatar" :src="msg.sender.avatar" alt="Avatar"
+                    class="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-600" />
 
-              
+                  <!-- Fallback: Initial letter circle if no avatar -->
+                  <div v-else
+                    class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold text-sm shadow-sm border border-blue-600 dark:border-blue-400">
+                    {{ (msg.sender.name || '?').charAt(0).toUpperCase() }}
+                  </div>
+                </div>
 
-              <!-- Uploading messages (optimistic UI) -->
+                <!-- Spacer for sent messages to keep bubble alignment -->
+                <div v-else-if="isGroup" class="w-8 flex-shrink-0"></div>
+
+                <!-- Message content column -->
+                <div class="flex flex-col" :class="isSent(msg) ? 'items-end' : 'items-start'">
+
+                  <!-- Sender name (only in group chat + not own message) -->
+                  <span v-if="!isSent(msg) && isGroup" class="text-xs text-gray-500 dark:text-gray-400 mb-1 px-1">
+                    {{ msg.sender.name }}
+                  </span>
+
+                  <!-- The actual message bubble -->
+                  <MessageBubble :msg="msg" :isSent="isSent(msg)" :setMessageRef="setMessageRef"
+                    :getMessageDay="getMessageDay" @openImage="openImageModal" @openReaction="openReactionPicker" />
+                </div>
+              </div>
+
             </template>
+
+            <!-- Uploading messages (optimistic UI) -->
             <UploadingMessage v-for="upload in uploadingMessages" :key="upload.tempId" :upload="upload"
               @cancel="cancelUpload" />
           </div>
-
         </div>
       </div>
     </div>
@@ -191,7 +211,7 @@ export default defineComponent({
 
     const isSent = (msg: any) => msg.sender?.id === currentUserId.value;
 
-    
+
 
     const getMessageDay = (timestamp?: string) => {
       if (!timestamp) return "";
@@ -214,7 +234,7 @@ export default defineComponent({
     };
 
 
-    
+
 
     const sendText = async (text: string) => {
       if (!chatStore.activeConversationId) return;
@@ -228,7 +248,6 @@ export default defineComponent({
     };
 
     const react = (messageId: number, emoji: string) => {
-      console.log(messageId);
 
       chatStore.reactToMessage(messageId, emoji)
     }
@@ -501,19 +520,7 @@ export default defineComponent({
     const commonEmojis = ['👍', '❤️', '😂', '😮', '😢'];
 
     // Group reactions: { emoji: string, count: number, isReactedByMe: boolean }
-    const groupedReactions = (reactions: Record<string, number[]> | undefined) => {
-      if (!reactions || Object.keys(reactions).length === 0) return [];
 
-      const currentUserIdVal = currentUserId.value;
-
-      return Object.entries(reactions)
-        .map(([emoji, userIds]) => ({
-          emoji,
-          count: userIds.length,
-          isReactedByMe: currentUserIdVal ? userIds.includes(currentUserIdVal) : false,
-        }))
-        .sort((a, b) => b.count - a.count);
-    };
 
     const openReactionPicker = (msg: any) => {
       reactionPickerMessage.value = msg;
@@ -560,7 +567,6 @@ export default defineComponent({
       isMobileView,
       isGroup,
       isSent,
-      formatTime,
       enlargedImage,
       openImageModal,
       uploadingMessages,
@@ -579,7 +585,6 @@ export default defineComponent({
       showStickyDate,
       openReactionPicker,
       commonEmojis,
-      groupedReactions,
       reactionPickerMessage,
       pickerTop,
       pickerLeft,

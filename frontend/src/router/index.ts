@@ -3,7 +3,7 @@ import { watch } from 'vue'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
-import Chat from '../views/ChatView.vue'
+import Chat from '../views/Chat.vue'
 import { useUserStore } from "../stores/user";
 
 const routes = [
