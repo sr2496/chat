@@ -57,6 +57,7 @@
             :class="{
               'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800': chatStore.activeConversationId === conversation.id,
             }">
+          
             <div class="relative flex-shrink-0 inline-block">
               <div
                 class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm shadow-md">

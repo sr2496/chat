@@ -57,6 +57,7 @@ class ConversationResource extends JsonResource
             'last_message' => $this->whenLoaded('lastMessage', function () {
                 return [
                     'message' => $this->lastMessage->message,
+                    'type' => $this->lastMessage->type,
                     'time' => $this->lastMessage->created_at,
                 ];
             }),

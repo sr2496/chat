@@ -179,6 +179,7 @@ export const useChatStore = defineStore("chat", {
     },
 
     pushMessage(message: Message) {
+
       const convId = message.conversation_id;
 
       if (!this.messagesByConversation[convId]) {
@@ -262,8 +263,13 @@ export const useChatStore = defineStore("chat", {
             }
           }
         )
-        .listen(".MessageReactionUpdated", (e: { message_id: number; emoji: string; user_id: number }) => {
-          this.toggleReaction(e.message_id, e.emoji);
+        .listen(".MessageReactionUpdated", (e: {
+          message_id: number;
+          user_id: number;
+          emoji: string | null;
+        }) => {
+          if (e.user_id === userStore.user?.id) return;
+          this.applyReactionUpdate(e.message_id, e.user_id, e.emoji);
         });
 
       this.echoChannels.set(conversationId, channel);
@@ -271,7 +277,7 @@ export const useChatStore = defineStore("chat", {
 
     stopAllListeners() {
       this.echoChannels.forEach((_, id) => {
-        window.Echo.leave(`private-conversation.${id}`);
+        window.Echo.leave(`conversation.${id}`);
       });
       this.echoChannels.clear();
     },
@@ -381,25 +387,85 @@ export const useChatStore = defineStore("chat", {
       ].filter((id) => id !== userId);
     },
 
-    toggleReaction(messageId: number, emoji: string) {
-      const userStore = useUserStore();
-      const msg = this.activeMessages.find((m) => m.id === messageId);
+    applyReactionUpdate(
+      messageId: number,
+      userId: number,
+      emoji: string | null
+    ) {
+      let msg: Message | null = null;
+
+      for (const msgs of Object.values(this.messagesByConversation)) {
+        const found = msgs.find(m => m.id === messageId);
+        if (found) {
+          msg = found;
+          break;
+        }
+      }
+
       if (!msg) return;
 
       msg.reactions ||= {};
 
-      const users = msg.reactions[emoji] || [];
-      const myId = userStore.user.id;
+      // ✅ 1. Remove user from ALL emojis
+      for (const [existingEmoji, users] of Object.entries(msg.reactions)) {
+        if (users.includes(userId)) {
+          msg.reactions[existingEmoji] = users.filter(id => id !== userId);
 
-      if (users.includes(myId)) {
-        msg.reactions[emoji] = users.filter((id) => id !== myId);
-        if (!msg.reactions[emoji].length) {
-          delete msg.reactions[emoji];
+          if (msg.reactions[existingEmoji].length === 0) {
+            delete msg.reactions[existingEmoji];
+          }
         }
-      } else {
-        msg.reactions[emoji] = [...users, myId];
+      }
+
+      // 2️⃣ Add new emoji (if exists)
+      if (emoji) {
+        msg.reactions[emoji] ||= [];
+        msg.reactions[emoji].push(userId);
       }
     },
+
+
+    toggleReaction(messageId: number, emoji: string) {
+      const myId = useUserStore().user?.id;
+      if (!myId) return;
+
+      let msg: Message | null = null;
+
+      for (const msgs of Object.values(this.messagesByConversation)) {
+        const found = msgs.find(m => m.id === messageId);
+        if (found) {
+          msg = found;
+          break;
+        }
+      }
+
+      if (!msg) return;
+
+      msg.reactions ||= {};
+
+      if (msg.reactions[emoji]?.includes(myId)) {
+        msg.reactions[emoji] = msg.reactions[emoji].filter(id => id !== myId);
+        if (msg.reactions[emoji].length === 0) {
+          delete msg.reactions[emoji];
+        }
+        return;
+      }
+
+      for (const [existingEmoji, users] of Object.entries(msg.reactions)) {
+        if (users.includes(myId)) {
+          msg.reactions[existingEmoji] = users.filter(id => id !== myId);
+
+          if (msg.reactions[existingEmoji].length === 0) {
+            delete msg.reactions[existingEmoji];
+          }
+        }
+      }
+
+      // ➕ Add new emoji
+      msg.reactions[emoji] ||= [];
+      msg.reactions[emoji].push(myId);
+    },
+
 
     async reactToMessage(messageId: number, emoji: string) {
       this.toggleReaction(messageId, emoji);

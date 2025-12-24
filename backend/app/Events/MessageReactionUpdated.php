@@ -20,9 +20,9 @@ class MessageReactionUpdated implements ShouldBroadcast
      * Create a new event instance.
      */
     public function __construct(
-        public Message $message,
-        public ?MessageReaction $reaction,
-        public string $action
+        public int $messageId,
+        public int $userId,
+        public ?string $emoji // null = removed
     ) {
         //
     }
@@ -34,7 +34,12 @@ class MessageReactionUpdated implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return new PrivateChannel('conversation.' . $this->message->conversation_id);
+        return new PrivateChannel('conversation.' . $this->conversationId());
+    }
+
+    protected function conversationId()
+    {
+        return Message::where('id', $this->messageId)->value('conversation_id');
     }
 
     public function broadcastAs()
@@ -45,10 +50,9 @@ class MessageReactionUpdated implements ShouldBroadcast
     public function broadcastWith()
     {
         return [
-            'message_id' => $this->message->id,
-            'emoji' => $this->reaction?->emoji,
-            'user_id' => $this->reaction?->user_id,
-            'action' => $this->action,
+            'message_id' => $this->messageId,
+            'user_id' => $this->userId,
+            'emoji' => $this->emoji,
         ];
     }
 }

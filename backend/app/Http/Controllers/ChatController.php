@@ -205,33 +205,41 @@ class ChatController extends Controller
             'emoji' => 'required|string|max:10',
         ]);
 
-        $reaction = MessageReaction::where([
+        $userId = auth()->id();
+
+        // Find existing reaction by this user (any emoji)
+        $existing = MessageReaction::where([
             'message_id' => $message->id,
-            'user_id' => auth()->id(),
-            'emoji' => $request->emoji,
+            'user_id' => $userId,
         ])->first();
 
-        if ($reaction) {
-            $reaction->delete();
-            $action = 'removed';
+        if ($existing) {
+            if ($existing->emoji === $request->emoji) {
+                // Same emoji → remove (toggle off)
+                $existing->delete();
+            } else {
+                // Different emoji → update
+                $existing->update(['emoji' => $request->emoji]);
+            }
         } else {
-            $reaction = MessageReaction::create([
+            // No reaction → create
+            MessageReaction::create([
                 'message_id' => $message->id,
-                'user_id' => auth()->id(),
+                'user_id' => $userId,
                 'emoji' => $request->emoji,
             ]);
-            $action = 'added';
         }
 
-        broadcast(new MessageReactionUpdated($message, $reaction, $action))->toOthers();
+        broadcast(new MessageReactionUpdated(
+            $message->id, 
+            $userId, 
+            $request->emoji
+            ))->toOthers();
 
-        return response()->json([
-            'action' => $action,
-            'emoji' => $request->emoji,
-            'user_id' => auth()->id(),
-            'message_id' => $message->id,
-        ]);
+        return response()->json(['success' => true]);
     }
+
+
 
     // Fetch users for search
     public function users()
