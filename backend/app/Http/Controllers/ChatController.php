@@ -94,63 +94,73 @@ class ChatController extends Controller
     {
         $request->validate([
             'message' => 'nullable|string',
-            'file' => 'nullable|mimes:jpg,jpeg,png,mp4,webm,pdf,doc,docx|max:51200', // 50MB
+            'files.*' => 'nullable|file|mimes:jpg,jpeg,png,mp4,webm,pdf,doc,docx|max:51200',
+            'files' => 'nullable|array|max:10',
         ]);
 
         $data = [
             'conversation_id' => $conversationId,
             'sender_id' => auth()->id(),
             'type' => 'text',
+            'message' => $request->message ?? null,
         ];
 
-        /* ---------------- TEXT MESSAGE ---------------- */
-        if ($request->filled('message')) {
-            $data['message'] = $request->message;
-        }
+        $hasFiles = $request->hasFile('files') && count($request->file('files')) > 0;
 
-        /* ---------------- FILE / IMAGE ---------------- */
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $mime = $file->getMimeType();
+        if ($hasFiles) {
+            $files = $request->file('files');
+            $firstFile = $files[0];
+            $mime = $firstFile->getMimeType();
 
             $isImage = str_starts_with($mime, 'image/');
             $isVideo = str_starts_with($mime, 'video/');
 
-            $folder = match (true) {
-                $isImage => 'chat/images',
-                $isVideo => 'chat/videos',
-                default  => 'chat/files',
-            };
-
-            $path = $file->store($folder, 'public');
-
-            $data['type'] = match (true) {
-                $isImage => 'image',
-                $isVideo => 'video',
-                default  => 'file',
-            };
-
-            $data['file_path'] = $path;
-            $data['file_name'] = $file->getClientOriginalName();
-            $data['mime_type'] = $file->getMimeType();
-            $data['file_size'] = $file->getSize();
+            // If multiple images → album
+            if (count($files) > 1 && $isImage) {
+                $data['type'] = 'album';
+            }
+            // Single image/video/file
+            elseif ($isImage) {
+                $data['type'] = 'image';
+            } elseif ($isVideo) {
+                $data['type'] = 'video';
+            } else {
+                $data['type'] = 'file';
+            }
         }
 
-        // ❗ Ensure at least text or file exists
-        if (empty($data['message']) && !$request->hasFile('file')) {
-            return response()->json([
-                'message' => 'Message or file is required'
-            ], 422);
+        // At least message or files required
+        if (!$data['message'] && !$hasFiles) {
+            return response()->json(['message' => 'Message or files required'], 422);
         }
 
         $message = Message::create($data);
 
-        // broadcast event with Laravel Echo
-        broadcast(new MessageSent($message))->toOthers();
+        // Handle file uploads (if any)
+        if ($hasFiles) {
+            foreach ($files as $file) {
+                $mime = $file->getMimeType();
+                $folder = match (true) {
+                    str_starts_with($mime, 'image/') => 'chat/images',
+                    str_starts_with($mime, 'video/') => 'chat/videos',
+                    default => 'chat/files',
+                };
 
-        return new MessageResource($message->load('sender'));
+                $path = $file->store($folder, 'public');
+
+                $message->attachments()->create([
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'mime_type' => $mime,
+                    'file_size' => $file->getSize(),
+                ]);
+            }
+        }
+
+        broadcast(new MessageSent($message->load('sender', 'attachments')))->toOthers();
+
+        return new MessageResource($message->load('sender', 'attachments'));
     }
-
     public function messages(Request $request, $conversationId)
     {
         $perPage = $request->get('per_page', 20);
@@ -231,10 +241,10 @@ class ChatController extends Controller
         }
 
         broadcast(new MessageReactionUpdated(
-            $message->id, 
-            $userId, 
+            $message->id,
+            $userId,
             $request->emoji
-            ))->toOthers();
+        ))->toOthers();
 
         return response()->json(['success' => true]);
     }

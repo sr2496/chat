@@ -10,7 +10,7 @@
       <div class="max-w-[80%] sm:max-w-[65%]"> <!-- Better responsive max width -->
         <div class="relative">
           <div
-            class="received-bubble bg-white dark:bg-slate-800 rounded-2xl shadow-sm px-4 py-2 inline-flex flex-col min-w-[80px] max-w-full"
+            class="received-bubble bg-white dark:bg-slate-800 rounded-2xl shadow-sm px-4 py-2 flex flex-col min-w-fit"
           >
             <!-- Message Content -->
             <MessageContent :msg="msg" @openImage="openImage" />
@@ -35,7 +35,7 @@
       <div class="max-w-[80%] sm:max-w-[65%]">
         <div class="relative">
           <div
-            class="sent-bubble bg-blue-500 text-white rounded-2xl shadow-sm px-4 py-2 inline-flex flex-col min-w-[80px] max-w-full"
+            class="sent-bubble bg-blue-500 text-white rounded-2xl shadow-sm px-4 py-2 flex flex-col min-w-fit"
           >
             <MessageContent :msg="msg" @openImage="openImage" />
 

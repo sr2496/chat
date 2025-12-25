@@ -148,7 +148,6 @@ import MessageInput from "./MessageInput.vue";
 import { useThrottleFn } from '@vueuse/core';
 import ChatHeader from "./Chat/ChatHeader.vue";
 import UploadingMessage from "./Chat/UploadingMessage.vue";
-import DateSeparator from "./Chat/DateSeparator.vue";
 import MessageBubble from "./Chat/MessageBubble.vue";
 
 interface QueuedFile {
@@ -166,7 +165,7 @@ interface UploadingMessage {
 }
 
 export default defineComponent({
-  components: { ChatHeader, DateSeparator, MessageBubble, MessageInput, UploadingMessage },
+  components: { ChatHeader, MessageBubble, MessageInput, UploadingMessage },
   setup() {
 
     const chatStore = useChatStore();
@@ -232,8 +231,6 @@ export default defineComponent({
       // Format like "Dec 20, 2025"
       return msgDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
     };
-
-
 
 
     const sendText = async (text: string) => {

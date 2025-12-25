@@ -214,7 +214,9 @@ export const useChatStore = defineStore("chat", {
         .listen(".MessageSent", (e: { message: Message }) => {
           const msg = e.message;
 
-          this.pushMessage(msg);
+          if (msg.sender.id !== userStore.user?.id) {
+            this.pushMessage(msg);
+          }
 
           // Increment unread if not active
           if (

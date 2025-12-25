@@ -23,7 +23,7 @@
         </svg>
     </a>
 
-    <p v-if="msg?.message" class="text-sm break-words leading-relaxed hyphens-auto">
+    <p v-if="msg?.message" class="text-sm leading-relaxed break-all whitespace-pre-wrap overflow-wrap-anywhere">
         {{ msg?.message }}
     </p>
 </template>
