@@ -86,7 +86,7 @@
                 :avatar="conv.display_avatar"
                 :name="conv.name"
                 size="lg"
-                :is-online="userStore.isUserOnline(chatStore.getOtherUser(conv).id)"
+                :is-online="userStore.isUserOnline(chatStore.getOtherUser(conv)?.id)"
                 :show-online="conv.type === 'private'"
               />
 

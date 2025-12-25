@@ -36,7 +36,7 @@
 
           <!-- Group chat: Member count -->
           <span v-else>
-            {{ activeConversation?.participants?.length || 0 }} members
+            {{ activeConversation?.users?.length || 0 }} members
           </span>
         </p>
       </div>

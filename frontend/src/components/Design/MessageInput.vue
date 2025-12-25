@@ -30,9 +30,8 @@
     </transition>
 
     <!-- File Previews (from old version) -->
-    <div v-if="queuedFiles.length" class="flex flex-wrap gap-3 mb-3 -mx-1">
+    <!-- <div v-if="queuedFiles.length" class="flex flex-wrap gap-3 mb-3 -mx-1">
       <div v-for="(fileObj, index) in queuedFiles" :key="index" class="relative group">
-        <!-- Image/Video Preview -->
         <div v-if="fileObj.preview"
           class="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 shadow-md">
           <img v-if="fileObj.type.startsWith('image/')" :src="fileObj.preview" class="w-full h-full object-cover" />
@@ -47,7 +46,6 @@
           </div>
         </div>
 
-        <!-- Generic File -->
         <div v-else
           class="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-sm">
           <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,7 +63,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <!-- Input Bar -->
     <div
@@ -165,13 +163,9 @@ const props = defineProps<{
   replyingTo?: { senderName?: string; body: string } | null;
 }>();
 
-const emit = defineEmits(['send-text', 'queue-files', 'cancel-reply']);
+const emit = defineEmits(['send-text', 'file-select', 'cancel-reply']);
 
-interface QueuedFile {
-  file: File;
-  preview?: string;
-  type: string;
-}
+
 
 const inputText = ref('');
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
@@ -179,11 +173,11 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const inputBarRef = ref<HTMLElement | null>(null);
 const emojiPickerRef = ref<HTMLElement | null>(null);
 
-const queuedFiles = ref<QueuedFile[]>([]);
+
 const showEmojiPicker = ref(false);
 const emojiPickerStyle = ref({ bottom: '0', left: '0' });
 
-const canSend = computed(() => inputText.value.trim().length > 0 || queuedFiles.value.length > 0);
+const canSend = computed(() => inputText.value.trim().length > 0);
 
 // Auto-resize
 const autoResize = () => {
@@ -201,29 +195,14 @@ const handleFileSelect = (e: Event) => {
   if (!input.files?.length) return;
 
   const files = Array.from(input.files);
-  const newFiles: QueuedFile[] = [];
 
-  for (const file of files) {
-    const queued: QueuedFile = {
-      file,
-      type: file.type || 'file',
-    };
-    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-      queued.preview = URL.createObjectURL(file);
-    }
-    newFiles.push(queued);
-  }
-
-  queuedFiles.value.push(...newFiles);
+  emit('file-select', files);
   input.value = '';
   nextTick(autoResize);
+
+
 };
 
-const removeFile = (index: number) => {
-  const file = queuedFiles.value[index];
-  if (file.preview) URL.revokeObjectURL(file.preview);
-  queuedFiles.value.splice(index, 1);
-};
 
 const formatFileSize = (bytes: number) => {
   if (bytes < 1024) return bytes + ' B';
@@ -234,18 +213,10 @@ const formatFileSize = (bytes: number) => {
 // Send
 const sendMessage = () => {
   const text = inputText.value.trim();
-
   if (text) {
     emit('send-text', text);
     inputText.value = '';
   }
-
-  if (queuedFiles.value.length) {
-    emit('queue-files', queuedFiles.value.map(f => ({ file: f.file, type: f.type, preview: f.preview })));
-    queuedFiles.value.forEach(f => f.preview && URL.revokeObjectURL(f.preview));
-    queuedFiles.value = [];
-  }
-
   nextTick(autoResize);
 };
 
@@ -283,7 +254,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
-  queuedFiles.value.forEach(f => f.preview && URL.revokeObjectURL(f.preview));
+  // queuedFiles.value.forEach(f => f.preview && URL.revokeObjectURL(f.preview));
 });
 
 // Placeholder for voice

@@ -4,24 +4,19 @@
     <!-- Header -->
     <ChatHeader />
 
+    <transition name="fade-slide">
+      <MediaComposer v-if="isMediaComposerOpen" :files="queuedFiles" @send="handleSendMedia" @close="closeComposer"
+        @file-add="handleFileAdd" />
+    </transition>
     <!-- Messages Area -->
-    <div
-      ref="scrollContainer"
-      class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar"
-    >
+    <div v-if="!isMediaComposerOpen" ref="scrollContainer" class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
       <div class="sticky top-0 z-30 flex justify-center pointer-events-none">
-        <transition
-          enter-active-class="transition-all duration-200 ease-out"
-          enter-from-class="opacity-0 -translate-y-2"
-          enter-to-class="opacity-100 translate-y-0"
-          leave-active-class="transition-all duration-150 ease-in"
-          leave-from-class="opacity-100 translate-y-0"
-          leave-to-class="opacity-0 -translate-y-2"
-        >
-          <span
-            v-if="showStickyDate && activeStickyDate"
-            class="px-5 py-1.5 text-xs font-semibold tracking-wider uppercase text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-full shadow-lg"
-          >
+        <transition enter-active-class="transition-all duration-200 ease-out"
+          enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition-all duration-150 ease-in" leave-from-class="opacity-100 translate-y-0"
+          leave-to-class="opacity-0 -translate-y-2">
+          <span v-if="showStickyDate && activeStickyDate"
+            class="px-5 py-1.5 text-xs font-semibold tracking-wider uppercase text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-full shadow-lg">
             {{ activeStickyDate }}
           </span>
         </transition>
@@ -30,38 +25,22 @@
       <!-- Skeleton Loader -->
       <transition name="fade">
         <div v-if="messagesLoading" class="space-y-8 animate-pulse">
-          <div
-            v-for="n in 10"
-            :key="n"
-            class="flex"
-            :class="n % 3 === 0 ? 'justify-end' : 'gap-3 items-end'"
-          >
+          <div v-for="n in 10" :key="n" class="flex" :class="n % 3 === 0 ? 'justify-end' : 'gap-3 items-end'">
             <!-- Avatar Skeleton (received) -->
-            <div
-              v-if="n % 3 !== 0"
-              class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex-shrink-0"
-            />
+            <div v-if="n % 3 !== 0" class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex-shrink-0" />
 
             <!-- Bubble Skeleton -->
             <div class="max-w-[75%]">
-              <div
-                class="relative px-4 py-3 rounded-2xl bg-gray-200 dark:bg-gray-700"
-              >
+              <div class="relative px-4 py-3 rounded-2xl bg-gray-200 dark:bg-gray-700">
                 <!-- Tail Skeleton -->
-                <div
-                  class="absolute bottom-0 w-4 h-4 bg-gray-200 dark:bg-gray-700"
-                  :class="
-                    n % 3 === 0
-                      ? 'right-0 translate-x-2'
-                      : 'left-0 -translate-x-2'
-                  "
-                />
+                <div class="absolute bottom-0 w-4 h-4 bg-gray-200 dark:bg-gray-700" :class="n % 3 === 0
+                  ? 'right-0 translate-x-2'
+                  : 'left-0 -translate-x-2'
+                  " />
 
                 <!-- Content Lines -->
                 <div class="space-y-2">
-                  <div
-                    class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-full"
-                  />
+                  <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-full" />
                   <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4" />
                   <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2" />
                 </div>
@@ -79,77 +58,48 @@
       <transition name="fade">
         <div v-if="!messagesLoading">
           <template v-for="(msg, index) in messages" :key="msg.id">
-            <DateSeparator
-              v-if="shouldShowDate(index)"
-              :day="getMessageDay(msg.created_at)"
-            />
+            <DateSeparator v-if="shouldShowDate(index)" :day="getMessageDay(msg.created_at)" />
 
-            <MessageBubble
-              :is-group="isGroup"
-              :is-sent="isSent(msg)"
-              :message="msg"
-              :setMessageRef="setMessageRef"
-              :getMessageDay="getMessageDay"
-              @open-emoji="openReactionPicker"
-            />
+            <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg" :setMessageRef="setMessageRef"
+              :getMessageDay="getMessageDay" @open-emoji="openReactionPicker" />
           </template>
 
           <!-- Uploading Messages -->
           <template v-for="upload in uploadingMessages" :key="upload.tempId">
-            <MessageBubble
-              :is-group="isGroup"
-              :is-sent="true"
-              :message="{
-                type: upload.type,
-                message: '',
-                file_path: upload.preview,
-                file_name: upload.file.name,
-                file_size: upload.file.size,
-              }"
-              :setMessageRef="setMessageRef"
-              :getMessageDay="getMessageDay"
-              :is-uploading="true"
-              :upload-progress="upload.progress"
-              @cancel-upload="cancelUpload(upload)"
-            />
+            <MessageBubble :is-group="isGroup" :is-sent="true" :message="{
+              type: upload.type,
+              message: '',
+              file_path: upload.preview,
+              file_name: upload.file.name,
+              file_size: upload.file.size,
+            }" :setMessageRef="setMessageRef" :getMessageDay="getMessageDay" :is-uploading="true"
+              :upload-progress="upload.progress" @cancel-upload="cancelUpload(upload)" />
           </template>
         </div>
       </transition>
     </div>
 
     <!-- Input Area (Reply Preview + Input) -->
-    <MessageInput
-      :replyingTo="replyingTo"
-      @send-text="sendText"
-      @queue-files="queueFiles"
-      @cancel-reply="replyingTo = null"
-      @open-emoji="openReactionPicker"
-    />
+    <MessageInput v-if="!isMediaComposerOpen" :replyingTo="replyingTo" @send-text="sendText"
+      @file-select="handleFileSelect" @cancel-reply="replyingTo = null" @open-emoji="openReactionPicker" />
 
     <!-- Reaction Picker Popup -->
     <!-- Reaction Picker Popup -->
     <teleport to="body">
       <transition name="reaction-fly">
-        <div
-          v-if="reactionPickerMessageId"
-          class="fixed z-50 pointer-events-none"
-          :style="{ top: pickerTop + 'px', left: pickerLeft + 'px' }"
-        >
+        <div v-if="reactionPickerMessageId" class="fixed z-50 pointer-events-none"
+          :style="{ top: pickerTop + 'px', left: pickerLeft + 'px' }">
           <div
-            class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-2.5 border border-gray-200 dark:border-gray-700 flex items-center gap-2 pointer-events-auto"
-          >
-            <button
-              v-for="emoji in commonEmojis"
-              :key="emoji"
-              @click="addReaction(reactionPickerMessageId, emoji)"
-              class="text-2xl hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 transition-all duration-150"
-            >
+            class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-2.5 border border-gray-200 dark:border-gray-700 flex items-center gap-2 pointer-events-auto">
+            <button v-for="emoji in commonEmojis" :key="emoji" @click="addReaction(reactionPickerMessageId, emoji)"
+              class="text-2xl hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 transition-all duration-150">
               {{ emoji }}
             </button>
           </div>
         </div>
       </transition>
     </teleport>
+
   </div>
 </template>
 
@@ -172,12 +122,17 @@ import MessageBubble from "./MessageBubble.vue";
 import { useUserStore } from "../../stores/user";
 import MessageInput from "./MessageInput.vue";
 import DateSeparator from "./DateSeparator.vue";
+import MediaComposer from "./MediaComposer.vue";
 
 interface QueuedFile {
   file: File;
   preview?: string;
   type: string;
+  caption?: string;
 }
+
+const queuedFiles = ref<QueuedFile[]>([]);
+
 interface UploadingMessage {
   tempId: string;
   file: File;
@@ -188,10 +143,11 @@ interface UploadingMessage {
 }
 
 export default defineComponent({
-  components: { MessageBubble, ChatHeader, MessageInput, DateSeparator },
+  components: { MessageBubble, ChatHeader, MessageInput, DateSeparator, MediaComposer },
   setup() {
     const chatStore = useChatStore();
     const messages = computed(() => chatStore.activeMessages);
+    const isMediaComposerOpen = ref(false);
 
     const replyingTo = ref<{ senderName?: string; body: string } | null>(null);
 
@@ -229,7 +185,6 @@ export default defineComponent({
       if (el) {
         messageRefs.set(id, el);
       }
-      console.log(messageRefs.get(id));
     };
 
     const isSent = (msg: any) => msg.sender?.id === currentUserId.value;
@@ -272,22 +227,72 @@ export default defineComponent({
       }
     };
 
-    const queueFiles = async ({files, caption}: {files: QueuedFile[], caption?: string}) => {
+    const handleFileSelect = (files: File[]) => {
+      queuedFiles.value = buildQueuedFiles(files);
+      isMediaComposerOpen.value = true;
+    };
+
+    const handleFileAdd = (files: File[]) => {
+      queuedFiles.value.push(...buildQueuedFiles(files));
+    };
+
+    const buildQueuedFiles = (files: File[]) => {
+      return files.map(file => {
+        const type = file.type.startsWith("image/")
+          ? "image"
+          : file.type.startsWith("video/")
+            ? "video"
+            : "file";
+
+        return {
+          file,
+          preview:
+            type === "image" || type === "video"
+              ? URL.createObjectURL(file)
+              : undefined,
+          type,
+          name: file.name,
+          size: file.size,
+          caption: "",
+        };
+      });
+    };
+
+    const closeComposer = () => {
+      queuedFiles.value.forEach(f => {
+        if (f.preview) {
+          URL.revokeObjectURL(f.preview);
+        }
+      });
+
+      queuedFiles.value = [];
+      isMediaComposerOpen.value = false;
+    };
+
+    const handleSendMedia = async (files: QueuedFile[]) => {
+      await saveMedia(files);
+      closeComposer(); // CLOSE + CLEANUP
+    };
+
+    const saveMedia = async (files: {
+      file: File;
+      preview?: string;
+      type: string;
+      caption?: string;
+    }[]) => {
       if (!chatStore.activeConversationId) return;
 
-      for (const fileObj of files) {
+      console.log(files);
+      
+      for (const item of files) {
         const tempId = `temp-${Date.now()}-${Math.random()}`;
         const controller = new AbortController();
 
         const uploadItem: UploadingMessage = {
           tempId,
-          file: fileObj.file,
-          preview: fileObj.preview,
-          type: fileObj.file.type.startsWith("image/")
-            ? "image"
-            : fileObj.file.type.startsWith("video/")
-            ? "video"
-            : "file",
+          file: item.file,
+          preview: item.preview,
+          type: item.type,
           progress: 0,
           controller,
         };
@@ -296,38 +301,32 @@ export default defineComponent({
 
         try {
           const form = new FormData();
-          form.append("file", fileObj.file);
-          form.append("type", uploadItem.type);
+          form.append("file", item.file);
+          form.append("type", item.type);
 
-          const res = await api.post(
-            `/messages/${chatStore.activeConversationId}`,
-            form,
-            {
-              signal: controller.signal,
-              onUploadProgress: (e) => {
-                if (!e.total) return;
+          if (item.caption?.trim()) {
+            form.append("message", item.caption); // ← Send caption as message text
+          }
 
-                const percent = Math.round((e.loaded * 100) / e.total);
-
-                uploadingMessages.value = uploadingMessages.value.map((item) =>
-                  item.tempId === tempId ? { ...item, progress: percent } : item
-                );
-              },
-            }
-          );
+          const res = await api.post(`/messages/${chatStore.activeConversationId}`, form, {
+            signal: controller.signal,
+            onUploadProgress: (e) => {
+              if (!e.total) return;
+              const percent = Math.round((e.loaded * 100) / e.total);
+              uploadingMessages.value = uploadingMessages.value.map(m =>
+                m.tempId === tempId ? { ...m, progress: percent } : m
+              );
+            },
+          });
 
           chatStore.pushMessage(res.data.data);
           scrollToBottom();
 
           setTimeout(() => {
-            // if (uploadItem.preview) {
-            //   URL.revokeObjectURL(uploadItem.preview);
-            // }
-            uploadingMessages.value = uploadingMessages.value.filter(
-              (m) => m.tempId !== tempId
-            );
+            uploadingMessages.value = uploadingMessages.value.filter(m => m.tempId !== tempId);
           }, 1000);
         } catch (err: any) {
+          // ... error handling
           uploadingMessages.value = uploadingMessages.value.filter(
             (m) => m.tempId !== tempId
           );
@@ -342,6 +341,8 @@ export default defineComponent({
         }
       }
     };
+
+
 
     const cancelUpload = (item: UploadingMessage) => {
       item.controller.abort();
@@ -534,6 +535,8 @@ export default defineComponent({
 
     const openReactionPicker = (messageId: number) => {
       // Toggle close if same message
+      console.log(messageId);
+      
       if (reactionPickerMessageId.value === messageId) {
         reactionPickerMessageId.value = null;
         return;
@@ -649,7 +652,6 @@ export default defineComponent({
       openImageModal,
       uploadingMessages,
       sendText,
-      queueFiles,
       cancelUpload,
       scrollContainer,
       messagesLoading,
@@ -669,6 +671,12 @@ export default defineComponent({
       addReaction,
       replyingTo,
       shouldShowDate,
+      isMediaComposerOpen,
+      queuedFiles,
+      handleSendMedia,
+      handleFileSelect,
+      closeComposer,
+      handleFileAdd,
     };
   },
 });
@@ -678,10 +686,12 @@ export default defineComponent({
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.4);
 }
@@ -690,6 +700,7 @@ export default defineComponent({
 .fade-leave-active {
   transition: opacity 0.3s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
@@ -699,26 +710,27 @@ export default defineComponent({
   0% {
     background-position: -200px 0;
   }
+
   100% {
     background-position: calc(200px + 100%) 0;
   }
 }
 
-.animate-pulse > * > * {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+.animate-pulse>*>* {
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent);
   background-size: 200px 100%;
   animation: shimmer 1.5s infinite;
 }
 
 /* Reaction Picker: Fly in from the message */
 .reaction-fly-enter-active {
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1); /* bouncy ease-out */
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  /* bouncy ease-out */
 }
+
 .reaction-fly-leave-active {
   transition: all 0.15s ease-in;
 }
@@ -727,6 +739,7 @@ export default defineComponent({
   opacity: 0;
   transform: scale(0.6) translateY(20px);
 }
+
 .reaction-fly-enter-to {
   opacity: 1;
   transform: scale(1) translateY(0);
