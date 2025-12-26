@@ -1,98 +1,115 @@
-<!-- MediaComposer.vue -->
+<!-- MediaComposer.vue – Same Heights, Modern Premium Design -->
 <template>
-  <div class="flex flex-col h-full bg-white text-gray-900">
+  <div class="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
 
-    <!-- Preview Area (FIXED SIZE – NO CAROUSEL) -->
-    <div class="flex-1 flex items-center justify-center bg-gray-100 relative">
+    <!-- Preview Area – SAME HEIGHT AS BEFORE (flex-1) -->
+    <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-950 relative">
 
-      <!-- Remove Active -->
+      <!-- Close Button -->
       <button @click="$emit('close')"
-        class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white shadow flex items-center justify-center">
-        ✕
+        class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+        <svg class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
       </button>
 
-      <!-- Add More -->
-      <label
-        class="absolute top-4 left-4 w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center cursor-pointer">
-        +
+      <!-- Add More Files -->
+      <label class="absolute top-4 left-4 cursor-pointer">
         <input ref="fileInput" type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx" class="hidden"
           @change="addMoreFiles" />
+        <div
+          class="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white shadow-lg transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </div>
       </label>
 
-      <!-- FIXED PREVIEW BOX -->
-      <div class="w-[420px] h-[420px] bg-white rounded-2xl shadow-xl flex items-center justify-center overflow-hidden">
-
+      <!-- FIXED PREVIEW BOX – SAME SIZE (420x420) -->
+      <div
+        class="w-[420px] h-[420px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex items-center justify-center">
         <!-- Image -->
         <img v-if="activeFile.type === 'image' && activeFile.preview" :src="activeFile.preview"
-          class="max-w-full max-h-full object-contain" />
+          class="max-w-full max-h-full object-contain" alt="Preview" />
 
         <!-- Video -->
         <video v-else-if="activeFile.type === 'video' && activeFile.preview" :src="activeFile.preview" controls
-          class="max-w-full max-h-full object-contain" />
+          class="max-w-full max-h-full object-contain rounded-2xl" />
 
-        <!-- File -->
-        <div v-else class="text-center px-6">
-          <p class="font-semibold">{{ activeFile.name }}</p>
-          <p class="text-sm text-gray-500">{{ formatFileSize(activeFile.size) }}</p>
+        <!-- File Placeholder -->
+        <div v-else class="text-center px-8">
+          <div
+            class="w-20 h-20 mx-auto mb-4 bg-gray-200 dark:bg-gray-700 rounded-2xl flex items-center justify-center shadow-inner">
+            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <p class="font-semibold text-lg">{{ truncateName(activeFile.name, 30) }}</p>
+          <p class="text-sm text-gray-500 mt-1">{{ formatFileSize(activeFile.size) }}</p>
         </div>
       </div>
     </div>
 
-    <!-- Caption -->
-    <div class="h-16 px-4 flex items-center border-t shrink-0">
-      <input v-model="currentCaption" placeholder="Add a caption…" class="flex-1 outline-none bg-transparent" />
-      <span class="text-xs text-gray-400 ml-2">
+    <!-- Caption Input – SAME HEIGHT (h-16) -->
+    <div class="h-16 px-6 flex items-center border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <input v-model="currentCaption" placeholder="Add a caption..."
+        class="flex-1 text-base bg-transparent outline-none placeholder-gray-500 dark:placeholder-gray-400" />
+      <span class="text-sm text-gray-400 ml-3">
         {{ currentCaption.length }}/2048
       </span>
     </div>
 
-    <!-- Bottom Grid (NO CAROUSEL) -->
-    <div class="h-[112px] px-4 py-3 border-t bg-gray-50 flex items-center gap-4 shrink-0">
+    <!-- Bottom Thumbnails Row – SAME HEIGHT (h-[112px]) -->
+    <div
+      class="h-[112px] px-6 bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
 
-      <!-- Thumbnails Row (FIXED spacing) -->
-      <div class="flex items-center gap-3 flex-1 overflow-x-auto">
+      <!-- Thumbnails -->
+      <div class="flex-1 flex items-center max-w-full">
+        <div class="flex items-center gap-3 overflow-x-auto scrollbar-thin py-2 px-1 flex-1">
+          <div v-for="(file, index) in files" :key="index" @click="activeIndex = index"
+            class="relative w-20 h-20 rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-all duration-200 shadow-md group"
+            :class="activeIndex === index ? 'ring-4 ring-blue-500 shadow-xl scale-105 z-10' : 'opacity-80 hover:opacity-100 hover:shadow-lg'">
+            <!-- Thumbnail Content -->
+            <img v-if="file.type === 'image' && file.preview" :src="file.preview" class="w-full h-full object-cover"
+              alt="Thumbnail" />
+            <video v-else-if="file.type === 'video' && file.preview" :src="file.preview"
+              class="w-full h-full object-cover" />
+            <div v-else
+              class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300">
+              {{ file.name.split('.').pop()?.toUpperCase() || 'FILE' }}
+            </div>
 
-        <div v-for="(file, index) in files" :key="index" @click="activeIndex = index"
-          class="relative w-20 h-20 rounded-xl overflow-hidden cursor-pointer shrink-0" :class="activeIndex === index
-            ? 'ring-2 ring-blue-500'
-            : 'opacity-80 hover:opacity-100'">
-          <!-- Image -->
-          <img v-if="file.type === 'image'" :src="file.preview" class="w-full h-full object-cover" />
-
-          <!-- Video -->
-          <video v-else-if="file.type === 'video'" :src="file.preview" class="w-full h-full object-cover" />
-
-          <!-- File -->
-          <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center text-[10px] font-semibold">
-            FILE
+            <!-- Remove Button – Slightly Larger & Better Positioned -->
+            <button @click.stop="removeFile(index)"
+              class="absolute top-2 right-2 w-7 h-7 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-
-          <!-- Remove Button (VISIBLE) -->
-          <button @click.stop="removeFile(index)"
-            class="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition">
-            ×
-          </button>
         </div>
-
       </div>
 
-      <!-- Send Button with COUNT -->
-      <button @click="$emit('send', files)"
-        class="relative w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shrink-0 shadow-lg hover:bg-blue-700 active:scale-95 transition">
-        ➤
+      <!-- Send Button with Count -->
+      <div class="flex-shrink-0 ml-auto">
+        <button @click="$emit('send', files)"
+          class="relative w-14 h-14 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95">
+          <svg class="w-6 h-6 rotate-90 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
 
-        <!-- File Count Badge -->
-        <span v-if="files.length > 1"
-          class="absolute -top-1 -right-1 w-6 h-6 bg-white text-blue-600 text-xs font-bold rounded-full flex items-center justify-center shadow">
-          {{ files.length }}
-        </span>
-      </button>
+          <!-- Count Badge – Only when multiple files -->
+          <span v-if="files.length > 0"
+            class="absolute -top-2 -right-2 w-8 h-8 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 text-sm font-bold rounded-full flex items-center justify-center shadow-lg border-2 border-gray-50 dark:border-gray-900">
+            {{ files.length }}
+          </span>
+        </button>
+      </div>
     </div>
-
-
   </div>
 </template>
-
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
@@ -117,7 +134,9 @@ const activeFile = computed(() => props.files[activeIndex.value] || { name: 'Unk
 const currentCaption = computed({
   get: () => props.files[activeIndex.value]?.caption || '',
   set: (val) => {
-    if (props.files[activeIndex.value]) props.files[activeIndex.value].caption = val;
+    if (props.files[activeIndex.value]) {
+      props.files[activeIndex.value].caption = val;
+    }
   }
 });
 
@@ -125,49 +144,38 @@ const removeFile = (index: number) => {
   const file = props.files[index];
   if (!file) return;
 
-  // Revoke preview URL
   if (file.preview) {
     URL.revokeObjectURL(file.preview);
   }
 
-  // Remove file
   props.files.splice(index, 1);
 
-  // Fix activeIndex
-  if (activeIndex.value > index) {
-    activeIndex.value--;
-  }
-
   if (activeIndex.value >= props.files.length) {
-    activeIndex.value = props.files.length - 1;
+    activeIndex.value = Math.max(0, props.files.length - 1);
   }
 
-  // No files left → close composer (optional)
   if (props.files.length === 0) {
-    activeIndex.value = 0;
-    emit('close'); // optional but recommended
+    emit('close');
   }
 };
 
 const addMoreFiles = (event: Event) => {
   const input = event.target as HTMLInputElement;
-  if (input.files && input.files.length > 0) {
-    const newFiles = Array.from(input.files).map(file => ({
-      file,
-      preview: file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : undefined,
-      type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file',
-      name: file.name,
-      size: file.size,
-      caption: ''
-    }));
-    emit('file-add', newFiles);
-  }
-  // Reset input
+  if (!input.files?.length) return;
+
+  const newFiles = Array.from(input.files).map(file => ({
+    file,
+    preview: file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : undefined,
+    type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file',
+    name: file.name,
+    size: file.size,
+    caption: ''
+  }));
+
+  emit('file-add', newFiles);
   input.value = '';
 };
 
-
-// Utils
 const formatFileSize = (bytes: number): string => {
   if (!bytes) return '0 B';
   const k = 1024;
@@ -185,31 +193,13 @@ const truncateName = (name: string, length: number): string => {
 </script>
 
 <style scoped>
-/* Fixed heights ensure consistent layout */
-:deep(.grid) {
-  max-height: 80px;
-}
-
-/* Smooth fade transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease-in-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
-}
-
-/* Custom scrollbar for grid */
 .scrollbar-thin::-webkit-scrollbar {
-  height: 4px;
+  height: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {

@@ -215,8 +215,9 @@ const formatTime = (timestamp?: string) => {
   if (isNaN(date.getTime())) return "";
 
   return date.toLocaleTimeString([], {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 };
 

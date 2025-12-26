@@ -2,14 +2,20 @@
 <template>
   <div class="flex flex-col h-screen bg-[#efeae2] dark:bg-gray-800">
     <!-- Header -->
-    <ChatHeader />
+    <div class="shrink-0">
+      <ChatHeader />
+    </div>
 
+    <!-- Media Composer -->
     <transition name="fade-slide">
       <MediaComposer v-if="isMediaComposerOpen" :files="queuedFiles" @send="handleSendMedia" @close="closeComposer"
         @file-add="handleFileAdd" />
     </transition>
+
     <!-- Messages Area -->
-    <div v-if="!isMediaComposerOpen" ref="scrollContainer" class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
+    <div v-if="!isMediaComposerOpen" ref="scrollContainer" class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar"
+      @dragover.prevent="dragOver = true" @dragenter.prevent="dragOver = true" @dragleave.prevent="handleDragLeave"
+      @drop.prevent="handleDrop">
       <div class="sticky top-0 z-30 flex justify-center pointer-events-none">
         <transition enter-active-class="transition-all duration-200 ease-out"
           enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0"
@@ -77,13 +83,30 @@
           </template>
         </div>
       </transition>
+
+      <!-- Drag & Drop Overlay -->
+      <transition name="fade">
+        <div v-if="dragOver"
+          class="absolute inset-0 z-40 bg-blue-500/20 dark:bg-blue-400/20 border-4 border-dashed border-blue-600 dark:border-blue-400 rounded-2xl flex items-center justify-center pointer-events-none backdrop-blur-sm">
+          <div class="text-center">
+            <svg class="w-20 h-20 mx-auto mb-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p class="text-3xl font-bold text-blue-700 dark:text-blue-300">Drop to send</p>
+            <p class="text-lg text-blue-600 dark:text-blue-400 mt-2">Images, videos, documents</p>
+          </div>
+        </div>
+      </transition>
     </div>
 
     <!-- Input Area (Reply Preview + Input) -->
     <MessageInput v-if="!isMediaComposerOpen" :replyingTo="replyingTo" @send-text="sendText"
       @file-select="handleFileSelect" @cancel-reply="replyingTo = null" @open-emoji="openReactionPicker" />
 
-    <!-- Reaction Picker Popup -->
+
+
     <!-- Reaction Picker Popup -->
     <teleport to="body">
       <transition name="reaction-fly">
@@ -99,7 +122,6 @@
         </div>
       </transition>
     </teleport>
-
   </div>
 </template>
 
@@ -148,6 +170,7 @@ export default defineComponent({
     const chatStore = useChatStore();
     const messages = computed(() => chatStore.activeMessages);
     const isMediaComposerOpen = ref(false);
+    const dragOver = ref(false);
 
     const replyingTo = ref<{ senderName?: string; body: string } | null>(null);
 
@@ -227,6 +250,27 @@ export default defineComponent({
       }
     };
 
+    const handleDrop = (e: DragEvent) => {
+      dragOver.value = false;
+      if (e.dataTransfer?.files?.length) {
+        const files = Array.from(e.dataTransfer.files);
+        if (isMediaComposerOpen.value) {
+          handleFileAdd(files);
+        } else {
+          handleFileSelect(files);
+        }
+      }
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      const current = e.currentTarget as HTMLElement | null;
+      const related = e.relatedTarget as Node | null;
+
+      if (!current || !related || !current.contains(related)) {
+        dragOver.value = false;
+      }
+    };
+
     const handleFileSelect = (files: File[]) => {
       queuedFiles.value = buildQueuedFiles(files);
       isMediaComposerOpen.value = true;
@@ -283,7 +327,7 @@ export default defineComponent({
       if (!chatStore.activeConversationId) return;
 
       console.log(files);
-      
+
       for (const item of files) {
         const tempId = `temp-${Date.now()}-${Math.random()}`;
         const controller = new AbortController();
@@ -536,7 +580,7 @@ export default defineComponent({
     const openReactionPicker = (messageId: number) => {
       // Toggle close if same message
       console.log(messageId);
-      
+
       if (reactionPickerMessageId.value === messageId) {
         reactionPickerMessageId.value = null;
         return;
@@ -592,24 +636,6 @@ export default defineComponent({
         pickerTop.value = top;
         pickerLeft.value = left;
       });
-    };
-
-    // Fallback if button not found
-    const positionCentered = (rect: DOMRect) => {
-      const pickerHeight = 76;
-      const pickerWidth = 280;
-      const gap = 6;
-
-      let top = rect.top + window.scrollY - pickerHeight - gap;
-      if (top < window.scrollY + 10) {
-        top = rect.bottom + window.scrollY + gap;
-      }
-
-      let left = rect.left + window.scrollX + rect.width / 2 - pickerWidth / 2;
-      left = Math.max(10, Math.min(left, window.innerWidth - pickerWidth - 10));
-
-      pickerTop.value = top;
-      pickerLeft.value = left;
     };
 
     const addReaction = (messageId: number, emoji: string) => {
@@ -677,6 +703,9 @@ export default defineComponent({
       handleFileSelect,
       closeComposer,
       handleFileAdd,
+      dragOver,
+      handleDrop,
+      handleDragLeave,
     };
   },
 });
