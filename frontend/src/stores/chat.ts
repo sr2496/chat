@@ -2,6 +2,12 @@ import { defineStore } from "pinia";
 import { api } from "../axios";
 import { useUserStore } from "./user";
 
+interface MessageReply {
+  id: number;
+  sender_name: string;
+  body: string;
+}
+
 interface Message {
   id: number;
   message: string;
@@ -10,6 +16,7 @@ interface Message {
   reactions?: Record<string, number[]>;
   conversation_id: number;
   created_at: string;
+  reply_to?: MessageReply | null;
   file_path: string;
   mime_type: string;
   file_name: string;

@@ -35,6 +35,12 @@ class ChatController extends Controller
                         });
                 }
             ])
+            ->orderByDesc(
+                Message::select('created_at')
+                    ->whereColumn('conversation_id', 'conversations.id')
+                    ->latest()
+                    ->limit(1)
+            )
             ->get();
 
         return ConversationResource::collection($conversations);
@@ -108,6 +114,10 @@ class ChatController extends Controller
             $data['message'] = $request->message;
         }
 
+        if ($request->filled('reply_to_message_id')) {
+            $data['reply_to_message_id'] = $request->reply_to_message_id;
+        }
+
         /* ---------------- FILE / IMAGE ---------------- */
         if ($request->hasFile('file')) {
             $file = $request->file('file');
@@ -154,7 +164,7 @@ class ChatController extends Controller
     {
         $perPage = $request->get('per_page', 20);
 
-        $messages = Message::with(['sender', 'readers', 'reactions.user'])
+        $messages = Message::with(['sender', 'readers', 'reactions.user', 'replyTo.sender'])
             ->where('conversation_id', $conversationId)
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);

@@ -1,103 +1,143 @@
 <template>
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div
-            class="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-200 dark:border-slate-700">
-            <h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-                Start New Chat
-            </h3>
-            <div class="relative mb-4">
-                <font-awesome-icon icon="magnifying-glass"
-                    class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
-                <input type="text" v-model="userSearchQuery" placeholder="Search users..."
-                    class="w-full pl-10 pr-4 py-2.5 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-transparent shadow-sm text-sm" />
-            </div>
-            <div class="max-h-64 overflow-y-auto custom-scrollbar space-y-2">
-                <template v-if="conversationsLoading">
-                    <div v-for="n in 6" :key="n" class="flex items-center p-3 rounded-lg animate-pulse">
-                        <div class="w-8 h-8 rounded-lg bg-gray-300 dark:bg-slate-700 mr-3"></div>
-                        <div class="h-3 w-2/3 bg-gray-300 dark:bg-slate-700 rounded"></div>
-                    </div>
-                </template>
-                <template v-else>
-
-                    <div v-for="user in filteredUserList" :key="user?.id" @click="startPrivateChat(user)"
-                        class="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer rounded-lg transition-all duration-200">
-                        <div
-                            class="w-8 h-8 rounded-lg bg-blue-500 text-white flex items-center justify-center font-semibold text-sm shadow-sm mr-3">
-                            {{ user?.name.charAt(0).toUpperCase() }}
-                        </div>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ user?.name }}</p>
-                    </div>
-                </template>
-            </div>
-            <div class="mt-6 flex justify-end">
-                <button @click="handleClose"
-                    class="px-6 py-2.5 rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 transition text-sm font-medium text-gray-900 dark:text-white">
-                    Close
-                </button>
-            </div>
+  <!-- Backdrop with subtle blur + click to close -->
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    :class="{'bg-black/40 backdrop-blur-sm': true}"
+    @click="$emit('close')"
+  >
+    <!-- Modal Card – Stop click propagation -->
+    <div
+      class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-gray-200 dark:border-gray-800 overflow-hidden"
+      style="height: 80vh; max-height: 640px;"
+      @click.stop
+    >
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-3 flex-shrink-0">
+        <div class="flex items-center justify-between">
+          <h3 class="text-2xl font-bold text-white">New Message</h3>
+          <button
+            @click="$emit('close')"
+            class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-    </div>
-</template>
-<script lang="ts">
-// Your script remains exactly the same — no changes needed
-// (All the logic you had before works perfectly with the new compact design)
-import {
-    defineComponent,
-    ref,
-    computed,
-} from "vue";
-import { useChatStore } from "../../stores/chat";
+      </div>
 
+      <!-- Search -->
+      <div class="px-6 pt-6 pb-4 flex-shrink-0">
+        <div class="relative">
+          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            v-model="userSearchQuery"
+            type="text"
+            placeholder="Search people..."
+            class="w-full pl-12 pr-5 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-shadow text-base shadow-inner"
+            autofocus
+          />
+        </div>
+      </div>
+
+      <!-- Scrollable User List -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 min-h-0">
+        <!-- Loading -->
+        <template v-if="userLoading">
+          <div v-for="n in 6" :key="n" class="flex items-center gap-4 py-4 animate-pulse">
+            <div class="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700" />
+            <div class="flex-1 space-y-3">
+              <div class="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+            </div>
+          </div>
+        </template>
+
+        <!-- Users -->
+        <template v-else>
+          <div
+            v-for="user in filteredUserList"
+            :key="user.id"
+            @click="startPrivateChat(user)"
+            class="flex items-center gap-4 py-4 px-4 rounded-2xl cursor-pointer transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-md group"
+          >
+            <UserAvatar
+              :avatar="user.avatar"
+              :name="user.name"
+              size="lg"
+              :is-online="userStore.isUserOnline(user.id)"
+              :show-online="true"
+            />
+
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {{ user.name }}
+              </p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ userStore.isUserOnline(user.id) ? 'Online' : 'Offline' }}
+              </p>
+            </div>
+
+            <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+
+          <!-- Empty State -->
+          <div v-if="filteredUserList.length === 0" class="text-center py-16 text-gray-500 dark:text-gray-400">
+            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <p class="text-lg font-medium">No users found</p>
+            <p class="text-sm mt-2">Try a different search term</p>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { defineComponent, ref, computed } from "vue";
+import { useChatStore } from "../../stores/chat";
+import { useUserStore } from "../../stores/user";
+import UserAvatar from "../Design/UserAvatar.vue";
 
 export default defineComponent({
-    props: {
-        conversationsLoading: {
-            type: Boolean,
-            required: true,
-            default: false,
-        },
-        users: {
-            type: Array as () => any[],
-            required: true,
-            default: () => [],
-        },
-    },
-    emits: ['close'],
-    setup(props, { emit }) {
+  components: { UserAvatar },
+  props: {
+    userLoading: { type: Boolean, required: true, default: false },
+    users: { type: Array as () => any[], required: true, default: () => [] },
+  },
+  emits: ['close'],
+  setup(props, { emit }) {
+    const userStore = useUserStore();
+    const chatStore = useChatStore();
 
-        const chatStore = useChatStore();
+    const userSearchQuery = ref("");
 
-        const userSearchQuery = ref("");
+    const normalize = (v = "") => v.toLowerCase().trim();
 
-        const normalize = (v = "") => v.toLowerCase();
+    const filteredUserList = computed(() => {
+      const q = normalize(userSearchQuery.value);
+      if (!q) return props.users;
+      return props.users.filter(u => normalize(u.name).includes(q));
+    });
 
-        const filteredUserList = computed(() => {
-            const q = normalize(userSearchQuery.value);
-            if (!q) return props.users;
-            return props.users.filter(u => normalize(u.name).includes(q));
-        });
+    const startPrivateChat = async (user: any) => {
+      await chatStore.createPrivateConversation(user.id);
+      emit("close");
+      userSearchQuery.value = "";
+    };
 
-        /* ---------------- ACTIONS ---------------- */
-
-
-        const startPrivateChat = async (user: any) => {
-            await chatStore.createPrivateConversation(user.id);
-            emit("close");
-            userSearchQuery.value = "";
-        };
-
-        const handleClose = () => {
-            emit("close"); // emit close event
-        };
-
-        return {
-            userSearchQuery,
-            filteredUserList,
-            startPrivateChat,
-            handleClose,
-
-        };
-    },
+    return {
+      userStore,
+      userSearchQuery,
+      filteredUserList,
+      startPrivateChat,
+    };
+  },
 });
 </script>

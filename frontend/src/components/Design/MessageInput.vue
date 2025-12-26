@@ -5,18 +5,25 @@
     <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0 -translate-y-2"
       enter-to-class="opacity-100 translate-y-0" leave-active-class="transition ease-in duration-150"
       leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-2">
-      <div v-if="replyingTo" class="bg-gray-100 dark:bg-gray-700 rounded-xl p-3 mb-3 shadow-sm">
+      <div v-if="replyingTo"
+        class="bg-gray-100 dark:bg-gray-700 rounded-xl p-3 mb-3 shadow-sm border-l-4 border-blue-500">
         <div class="flex items-center justify-between">
           <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            <!-- Colorful Sender Name -->
+            <p class="text-xs font-semibold truncate" :class="senderNameColor">
               Replying to {{ replyingTo.senderName || 'someone' }}
             </p>
-            <p class="text-sm text-gray-800 dark:text-gray-200 truncate mt-1">
+
+            <!-- Reply Body -->
+            <p
+              class="text-sm text-gray-800 dark:text-gray-200 truncate mt-1 break-all whitespace-pre-wrap overflow-wrap-anywhere">
               {{ replyingTo.body }}
             </p>
           </div>
+
+          <!-- Cancel Button -->
           <button @click="$emit('cancel-reply')"
-            class="ml-3 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+            class="ml-3 p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition">
             <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -25,41 +32,6 @@
       </div>
     </transition>
 
-    <!-- File Previews (from old version) -->
-    <!-- <div v-if="queuedFiles.length" class="flex flex-wrap gap-3 mb-3 -mx-1">
-      <div v-for="(fileObj, index) in queuedFiles" :key="index" class="relative group">
-        <div v-if="fileObj.preview"
-          class="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 shadow-md">
-          <img v-if="fileObj.type.startsWith('image/')" :src="fileObj.preview" class="w-full h-full object-cover" />
-          <video v-else :src="fileObj.preview" class="w-full h-full object-cover" />
-          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-            <button @click.stop="removeFile(index)"
-              class="bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div v-else
-          class="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-sm">
-          <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2-2z" />
-          </svg>
-          <div class="min-w-0 flex-1">
-            <p class="font-medium truncate max-w-32">{{ fileObj.file.name }}</p>
-            <p class="text-xs text-gray-500">{{ formatFileSize(fileObj.file.size) }}</p>
-          </div>
-          <button @click.stop="removeFile(index)" class="text-red-500 hover:text-red-600">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div> -->
 
     <!-- Input Bar -->
     <div ref="inputBarRef"
@@ -130,7 +102,11 @@
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps<{
-  replyingTo?: { senderName?: string; body: string } | null;
+  replyingTo?: {
+    id?: number;
+    senderName?: string;
+    body: string;
+  } | null;
 }>();
 
 const emit = defineEmits(['send-text', 'file-select', 'cancel-reply']);
@@ -174,11 +150,29 @@ const handleFileSelect = (e: Event) => {
 };
 
 
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-};
+const senderNameColor = computed(() => {
+  const name = props.replyingTo?.value?.senderName || 'unknown';
+  const colors = [
+    'text-blue-600 dark:text-blue-400',
+    'text-purple-600 dark:text-purple-400',
+    'text-green-600 dark:text-green-400',
+    'text-pink-600 dark:text-pink-400',
+    'text-indigo-600 dark:text-indigo-400',
+    'text-teal-600 dark:text-teal-400',
+    'text-orange-600 dark:text-orange-400',
+    'text-red-600 dark:text-red-400',
+    'text-cyan-600 dark:text-cyan-400',
+    'text-amber-600 dark:text-amber-400',
+  ];
+
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+});
+
 
 // Send
 const sendMessage = () => {

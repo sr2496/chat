@@ -121,27 +121,6 @@ export default defineComponent({
 });
 </script>
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 999px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #3b82f6;
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #2563eb;
-  background-clip: content-box;
-}
-
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #3b82f6 transparent;

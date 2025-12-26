@@ -29,7 +29,7 @@
       </div>
 
       <!-- Skeleton Loader -->
-      <transition name="fade">
+      <transition name="fade" mode="out-in">
         <div v-if="messagesLoading" class="space-y-8 animate-pulse">
           <div v-for="n in 10" :key="n" class="flex" :class="n % 3 === 0 ? 'justify-end' : 'gap-3 items-end'">
             <!-- Avatar Skeleton (received) -->
@@ -59,15 +59,20 @@
             </div>
           </div>
         </div>
-      </transition>
-
-      <transition name="fade">
-        <div v-if="!messagesLoading">
+        <div v-else key="messages" class="relative">
           <template v-for="(msg, index) in messages" :key="msg.id">
             <DateSeparator v-if="shouldShowDate(index)" :day="getMessageDay(msg.created_at)" />
-
+            <!-- Unread Divider -->
+            <div v-if="msg.id === firstUnreadId" class="relative my-4 flex items-center">
+              <div class="h-px flex-grow bg-gray-200 dark:bg-gray-700" />
+              <span class="mx-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                New messages
+              </span>
+              <div class="h-px flex-grow bg-gray-200 dark:bg-gray-700" />
+            </div>
             <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg" :setMessageRef="setMessageRef"
-              :getMessageDay="getMessageDay" @open-emoji="openReactionPicker" />
+              :getMessageDay="getMessageDay" @open-emoji="openReactionPicker" @context-menu="openContextMenu"
+              @scroll-to-message="scrollToMessage" />
           </template>
 
           <!-- Uploading Messages -->
@@ -122,6 +127,22 @@
         </div>
       </transition>
     </teleport>
+    <teleport to="body">
+      <transition name="fade-scale">
+        <div v-if="contextMenu"
+          class="fixed z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1 min-w-[160px]"
+          :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }" @click.stop @contextmenu.stop.prevent>
+          <button @click="replyToMessage(contextMenu.message)"
+            class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            Reply
+          </button>
+        </div>
+      </transition>
+    </teleport>
   </div>
 </template>
 
@@ -172,7 +193,66 @@ export default defineComponent({
     const isMediaComposerOpen = ref(false);
     const dragOver = ref(false);
 
-    const replyingTo = ref<{ senderName?: string; body: string } | null>(null);
+    const contextMenu = ref<{
+      message: any;
+      x: number;
+      y: number;
+    } | null>(null);
+
+    const replyingTo = ref<{ id?: number; senderName?: string; body: string } | null>(null);
+
+    const openContextMenu = (e: MouseEvent, message: any) => {
+      e.preventDefault();
+
+      let x = e.clientX;
+      let y = e.clientY;
+
+      // If menu would go off-screen to the right, flip it left
+      const menuWidth = 180; // approx width of your menu
+      if (x + menuWidth > window.innerWidth) {
+        x = window.innerWidth - menuWidth - 10; // 10px margin
+      }
+
+      // Optional: flip up if near bottom
+      const menuHeight = 60;
+      if (y + menuHeight > window.innerHeight) {
+        y = window.innerHeight - menuHeight - 10;
+      }
+
+      contextMenu.value = {
+        message,
+        x,
+        y,
+      };
+      console.log(contextMenu);
+
+    };
+
+    const replyToMessage = (message: any) => {
+      replyingTo.value = {
+        id: message.id,
+        senderName: message.sender?.id === currentUserId.value ? "You" : message.sender?.name || "Unknown",
+        body:
+          message.type === "text"
+            ? message.message
+            : message.type === "image"
+              ? "[Image]"
+              : message.type === "video"
+                ? "[Video]"
+                : "[File]",
+      };
+      contextMenu.value = null;
+    };
+
+    const closeContextMenu = (e: Event) => {
+      const menu = document.querySelector('.fixed.z-50.bg-white'); // your menu class
+      const target = e.target as Node;
+
+      if (menu && !menu.contains(target)) {
+        contextMenu.value = null;
+      }
+    };
+
 
     const loadingMore = computed(() => {
       const convId = chatStore.activeConversationId;
@@ -189,6 +269,7 @@ export default defineComponent({
     const uploadingMessages = ref<UploadingMessage[]>([]);
     const isGroup = computed(() => activeConversation.value?.type === "group");
     const messagesLoading = ref(true);
+
 
     const activeConversation = computed(() => {
       const convId = chatStore.activeConversationId;
@@ -239,11 +320,22 @@ export default defineComponent({
     const sendText = async (text: string) => {
       if (!chatStore.activeConversationId) return;
       try {
+        const payload: any = {
+          message: text,
+        };
+
+        if (replyingTo.value?.id) {
+          payload.reply_to_message_id = replyingTo.value.id;
+        }
+
         const res = await api.post(
           `/messages/${chatStore.activeConversationId}`,
-          { message: text }
+          payload
         );
+
         chatStore.pushMessage(res.data.data);
+        replyingTo.value = null;
+
         scrollToBottom();
       } catch (err) {
         console.error("Text send failed", err);
@@ -326,8 +418,6 @@ export default defineComponent({
     }[]) => {
       if (!chatStore.activeConversationId) return;
 
-      console.log(files);
-
       for (const item of files) {
         const tempId = `temp-${Date.now()}-${Math.random()}`;
         const controller = new AbortController();
@@ -385,8 +475,6 @@ export default defineComponent({
         }
       }
     };
-
-
 
     const cancelUpload = (item: UploadingMessage) => {
       item.controller.abort();
@@ -448,6 +536,31 @@ export default defineComponent({
       setTimeout(() => {
         scroll();
       }, 80);
+    };
+
+    const scrollToMessage = async (messageId: number) => {
+      await nextTick(); // Wait for DOM update
+
+      const el = messageRefs.get(messageId);
+      if (!el || !scrollContainer.value) return;
+
+      // Scroll into view with smooth behavior
+      el.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center', // Centers the message vertically
+      });
+
+      // Optional: Add a subtle highlight flash
+      el.classList.add(
+        'bg-blue-100',
+        'dark:bg-blue-900/30',
+        'transition-all',
+        'duration-1000'
+      );
+      setTimeout(() => {
+        el.classList.remove('bg-blue-100', 'dark:bg-blue-900/30');
+      }, 2000);
+
     };
 
     const handleScroll = () => {
@@ -551,7 +664,7 @@ export default defineComponent({
 
         return chatStore.messagesByConversation[convId] || [];
       },
-      (messages) => {
+      async (messages) => {
         if (!messages) return;
 
         const unreadIds = messages
@@ -566,6 +679,8 @@ export default defineComponent({
             message_ids: unreadIds,
           });
         }
+        await nextTick();
+        scrollToFirstUnread();
       },
       { deep: true }
     );
@@ -579,7 +694,6 @@ export default defineComponent({
 
     const openReactionPicker = (messageId: number) => {
       // Toggle close if same message
-      console.log(messageId);
 
       if (reactionPickerMessageId.value === messageId) {
         reactionPickerMessageId.value = null;
@@ -654,6 +768,7 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      document.addEventListener('click', closeContextMenu);
       document.addEventListener("click", closeReactionPickerOnClickOutside);
       const el = scrollContainer.value;
       if (!el) return;
@@ -665,6 +780,7 @@ export default defineComponent({
     });
 
     onUnmounted(() => {
+      document.removeEventListener('click', closeContextMenu);
       document.removeEventListener("click", closeReactionPickerOnClickOutside);
       const el = scrollContainer.value;
       if (!el) return;
@@ -706,25 +822,16 @@ export default defineComponent({
       dragOver,
       handleDrop,
       handleDragLeave,
+      contextMenu,
+      openContextMenu,
+      replyToMessage,
+      scrollToMessage,
     };
   },
 });
 </script>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.4);
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;

@@ -7,7 +7,7 @@
     <UserAvatar v-if="!isSent && isGroup" :avatar="message.sender?.avatar" :name="message.sender?.name || 'User'"
       size="sm" :is-online="message.sender?.online" :show-online="false" />
 
-    <div class="max-w-[75%]">
+    <div class="max-w-[75%]" @contextmenu.prevent="$emit('context-menu', $event, message)">
       <div class="relative">
         <div class="relative px-4 py-2 rounded-2xl shadow-sm overflow-hidden" :class="bubbleClasses">
           <!-- Tail -->
@@ -35,6 +35,35 @@
               {{ message.sender?.name || message.sender?.username || 'Unknown' }}
             </span>
           </div>
+
+          <!-- Replied Message Preview -->
+          <!-- Replied Message Preview – Polished & Premium -->
+          <div v-if="message.reply_to" @click="$emit('scroll-to-message', message.reply_to.id)" class="
+            mb-3
+            -mx-3 px-3 py-2.5
+            rounded-lg
+            bg-blue-50/80 dark:bg-blue-900/30
+            border-l-4 border-blue-500
+            cursor-pointer
+            select-none
+            transition-all duration-200
+            hover:bg-blue-100/80 dark:hover:bg-blue-900/50
+            hover:shadow-sm
+          ">
+            <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 truncate">
+              {{ message.reply_to.sender_name }}
+            </p>
+
+            <p class="
+                text-sm text-gray-700 dark:text-gray-300
+                mt-1 leading-relaxed
+                line-clamp-2
+                break-all whitespace-pre-wrap overflow-wrap-anywhere
+              ">
+              {{ message.reply_to.body }}
+            </p>
+          </div>
+
 
           <!-- Text Message -->
           <p v-if="!message?.type || message.type === 'text'"
@@ -181,6 +210,7 @@
         </transition>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -199,7 +229,8 @@ const props = defineProps<{
   uploadProgress?: number;
 }>();
 
-const emit = defineEmits(["cancel-upload", "open-emoji"]);
+
+const emit = defineEmits(["cancel-upload", "open-emoji", "context-menu", "scroll-to-message"]);
 
 const formatSize = (bytes?: number) => {
   if (!bytes) return "0 KB";

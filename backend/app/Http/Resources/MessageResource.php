@@ -35,6 +35,12 @@ class MessageResource extends JsonResource
             'file_size' => $this->file_size,
             'created_at' => $this->created_at,
 
+            'reply_to' => $this->replyTo ? [
+                'id' => $this->replyTo->id,
+                'sender_name' => $this->replyTo?->sender?->id == $userId ? "You" : $this->replyTo?->sender?->name ?? 'User',
+                'body' => $this->replyTo->message ?? '[Media]',
+            ] : null,
+
             // 🔥 READ RECEIPTS
             'read_by_me' => $readBy->contains($userId),
             'read_by_count' => $readBy->count(),

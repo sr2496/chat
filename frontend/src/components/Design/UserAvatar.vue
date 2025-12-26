@@ -56,7 +56,7 @@ const sizeMap = {
   xl: 'w-20 h-20 text-3xl',
 };
 
-const containerClasses = computed(() => sizeMap[props.size || 'md']);
+const containerClasses = computed(() => sizeMap[props.size || 'lg']);
 
 // Initials
 const initials = computed(() => {
@@ -95,15 +95,3 @@ const initialsBgClass = computed(() => {
 // Show status dot only if explicitly enabled (useful for group vs private)
 const showStatusDot = computed(() => props.showStatusDot !== false);
 </script>
-
-<style scoped>
-.fade-scale-enter-active,
-.fade-scale-leave-active {
-  transition: all 0.2s ease;
-}
-.fade-scale-enter-from,
-.fade-scale-leave-to {
-  opacity: 0;
-  transform: scale(0.8);
-}
-</style>
