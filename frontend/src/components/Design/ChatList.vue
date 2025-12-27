@@ -22,19 +22,21 @@
           <div class="flex items-center gap-3">
             <!-- New Message Button (Blue) -->
             <button @click="$emit('new-chat')"
-              class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              class="px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm hover:-translate-y-0.5">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
+              <span>New Chat</span>
             </button>
 
             <!-- Create Group Button (Green) -->
             <button @click="$emit('create-group')"
-              class="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              class="px-4 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm hover:-translate-y-0.5">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0A5.002 5.002 0 019 5c0-1.105-.895-2-2-2m0 0a5.002 5.002 0 013.5 1.5M7 7a5 5 0 0110 0m-10 0a5 5 0 0110 0m-10 0v1" />
               </svg>
+              <span>New Group</span>
             </button>
           </div>
         </div>
@@ -101,7 +103,8 @@
 
                 <div class="flex items-center justify-between mt-1">
                   <p class="text-sm text-gray-600 dark:text-gray-400 truncate pr-2">
-                    {{ chatStore.typingText(conv.id) || conv.last_message?.message || 'No messages yet' }}
+                    {{ chatStore.typingText(conv.id) || chatStore.getLastMessagePreview(conv.last_message) ||
+                      'No messages yet' }}
                   </p>
 
                   <span v-if="conv.unread_count > 0"

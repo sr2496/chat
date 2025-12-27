@@ -129,7 +129,7 @@ const emit = defineEmits(['close', 'send', 'file-add']);
 const fileInput = ref<HTMLInputElement | null>(null);
 const activeIndex = ref(0);
 
-const activeFile = computed(() => props.files[activeIndex.value] || { name: 'Unknown', size: 0, type: 'file' });
+const activeFile = computed(() => props.files[activeIndex.value] || { name: 'Unknown', preview: undefined, size: 0, type: 'file' });
 
 const currentCaption = computed({
   get: () => props.files[activeIndex.value]?.caption || '',

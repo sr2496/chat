@@ -1,6 +1,3 @@
-2. Message reactions (🔥 ❤️ 👍 😂)
-3. Message actions menu (⋮)
 Reply to message (Thread-lite)
 Search inside conversation 🔍
 Pin messages 📌
-Voice messages 🎤

@@ -4,8 +4,8 @@
     class="flex mb-6 message-row group relative" :class="isSent ? 'justify-end' : 'gap-3 items-end'">
     <!-- Avatar for received -->
 
-    <UserAvatar v-if="!isSent && isGroup" :avatar="message.sender?.avatar" :name="message.sender?.name || 'User'"
-      size="sm" :is-online="message.sender?.online" :show-online="false" />
+    <UserAvatar v-if="!isSent && isGroup && message.type !== 'audio'" :avatar="message.sender?.avatar"
+      :name="message.sender?.name || 'User'" size="sm" :is-online="message.sender?.online" :show-online="false" />
 
     <div class="max-w-[75%]">
       <div class="relative">
@@ -76,6 +76,43 @@
             <p v-if="message.message" class="mt-2 text-sm">
               {{ message.message }}
             </p>
+          </div>
+
+          <!-- Audio Player (Custom) -->
+          <div v-else-if="message.type === 'audio'" class="flex items-center gap-3 min-w-[240px] p-1 pr-4">
+            <!-- Play/Pause Button -->
+            <button @click.stop="toggleAudio"
+              class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm"
+              :class="isSent ? 'bg-white text-blue-500 hover:bg-gray-100' : 'bg-blue-500 text-white hover:bg-blue-600'">
+              <svg v-if="!isPlaying" class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+            </button>
+
+            <!-- Progress & Time -->
+            <div class="flex-1 flex flex-col justify-center min-w-[120px] gap-1">
+              <!-- Waveform / Progress Bar -->
+              <div class="relative h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden cursor-pointer"
+                @click.stop="seekAudio">
+                <div class="absolute inset-y-0 left-0 transition-all duration-100 ease-linear rounded-full"
+                  :class="isSent ? 'bg-white' : 'bg-gray-800 dark:bg-gray-200'" :style="{ width: progress + '%' }">
+                </div>
+              </div>
+
+              <!-- Duration Text -->
+              <div class="flex justify-between text-[10px] font-medium opacity-70">
+                <span>{{ formatAudioTime(currentTime) }}</span>
+                <span>{{ formatAudioTime(duration || message.file_size / 5000)
+                }}<!-- Fallback if duration not ready --></span>
+              </div>
+            </div>
+
+            <!-- Hidden Audio Element -->
+            <audio ref="audioRef" :src="message.file_path" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata"
+              @ended="onEnded" @play="isPlaying = true" @pause="isPlaying = false" class="hidden"></audio>
           </div>
 
           <!-- Video Preview -->
@@ -181,7 +218,7 @@
           <div class="flex justify-end items-center gap-1 mt-2">
             <span class="text-[11px] opacity-70">{{
               formatTime(message.created_at)
-              }}</span>
+            }}</span>
             <span v-if="isSent" class="text-[11px]" :class="readClass">
               {{ message?.read_by_count > 0 ? "✓✓" : "✓" }}
             </span>
@@ -240,7 +277,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import UserAvatar from "./UserAvatar.vue";
 
 const props = defineProps<{
@@ -256,6 +293,65 @@ const props = defineProps<{
 
 
 const emit = defineEmits(["cancel-upload", "open-emoji", "open-actions", "scroll-to-message"]);
+
+// Custom Audio Player Logic
+const audioRef = ref<HTMLAudioElement | null>(null);
+const isPlaying = ref(false);
+const currentTime = ref(0);
+const duration = ref(0);
+const progress = ref(0);
+
+const toggleAudio = () => {
+  if (!audioRef.value) return;
+  if (isPlaying.value) {
+    audioRef.value.pause();
+  } else {
+    audioRef.value.play();
+  }
+};
+
+const onTimeUpdate = () => {
+  if (!audioRef.value) return;
+  currentTime.value = audioRef.value.currentTime;
+  if (duration.value) {
+    progress.value = (currentTime.value / duration.value) * 100;
+  }
+};
+
+const onLoadedMetadata = () => {
+  if (!audioRef.value) return;
+  duration.value = audioRef.value.duration;
+};
+
+const onEnded = () => {
+  isPlaying.value = false;
+  currentTime.value = 0;
+  progress.value = 0;
+};
+
+const seekAudio = (e: MouseEvent) => {
+  if (!audioRef.value || !duration.value) return;
+  const target = e.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const percent = Math.min(Math.max(x / rect.width, 0), 1);
+
+  audioRef.value.currentTime = percent * duration.value;
+  progress.value = percent * 100;
+};
+
+// Update play status binding
+// Note: <audio> play/pause events are better, but simplified toggle works for MVP.
+// Let's add listeners to sync state precisely if external events pause it.
+// e.g. audioRef.value.onplay = () => isPlaying.value = true;
+
+const formatAudioTime = (seconds: number) => {
+  if (isNaN(seconds)) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
 
 const formatSize = (bytes?: number) => {
   if (!bytes) return "0 KB";

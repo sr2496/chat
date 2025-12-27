@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use App\Http\Resources\MessageResource;
 
 class MessageSent implements ShouldBroadcast
 {
@@ -20,7 +21,12 @@ class MessageSent implements ShouldBroadcast
      */
     public function __construct(public Message $message)
     {
-        $this->message = $message->load('sender');
+        $this->message = $message->load([
+            'sender',
+            'readers',
+            'reactions',
+            'replyTo.sender',
+        ]);
     }
 
     /**
@@ -38,5 +44,12 @@ class MessageSent implements ShouldBroadcast
     public function broadcastAs()
     {
         return 'MessageSent';
+    }
+
+    public function broadcastWith(): array
+    {
+        return [
+            'message' => (new MessageResource($this->message))->toArray(request()),
+        ];
     }
 }

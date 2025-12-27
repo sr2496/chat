@@ -26,7 +26,7 @@ return new class extends Migration
             $table->text('message')->nullable();
 
             // MESSAGE TYPE
-            $table->enum('type', ['text', 'image', 'video', 'file'])->default('text');
+            $table->enum('type', ['text', 'image', 'video', 'file', 'audio'])->default('text');
 
             // FILE / IMAGE DATA
             $table->string('file_path')->nullable();   // storage path

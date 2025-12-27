@@ -100,7 +100,7 @@ class ChatController extends Controller
     {
         $request->validate([
             'message' => 'nullable|string',
-            'file' => 'nullable|mimes:jpg,jpeg,png,mp4,webm,pdf,doc,docx|max:51200', // 50MB
+            'file' => 'nullable|mimes:jpg,jpeg,png,mp4,webm,pdf,doc,docx,weba,wav,m4a,mp3,oga,ogg,opus|max:51200', // 50MB
         ]);
 
         $data = [
@@ -121,14 +121,20 @@ class ChatController extends Controller
         /* ---------------- FILE / IMAGE ---------------- */
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $mime = $file->getMimeType();
+            $serverMime = $file->getMimeType();
+            $clientMime = $file->getClientMimeType();
 
-            $isImage = str_starts_with($mime, 'image/');
-            $isVideo = str_starts_with($mime, 'video/');
+            $isImage = str_starts_with($serverMime, 'image/');
+            $isVideo = str_starts_with($serverMime, 'video/');
+            
+            // Check both server and client mime for audio. 
+            // WebM is often detected as video by server (container), but client knows it's audio.
+            $isAudio = str_starts_with($serverMime, 'audio/') || str_starts_with($clientMime, 'audio/');
 
             $folder = match (true) {
                 $isImage => 'chat/images',
-                $isVideo => 'chat/videos',
+                $isVideo && !$isAudio => 'chat/videos',
+                $isAudio => 'chat/audio', // Prioritize audio if ambiguous (e.g. video/webm container but audio content)
                 default  => 'chat/files',
             };
 
@@ -136,7 +142,8 @@ class ChatController extends Controller
 
             $data['type'] = match (true) {
                 $isImage => 'image',
-                $isVideo => 'video',
+                $isVideo && !$isAudio => 'video',
+                $isAudio => 'audio',
                 default  => 'file',
             };
 
@@ -160,6 +167,7 @@ class ChatController extends Controller
 
         return new MessageResource($message->load('sender'));
     }
+    
     public function messages(Request $request, $conversationId)
     {
         $perPage = $request->get('per_page', 20);

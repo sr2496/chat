@@ -159,7 +159,7 @@ export const useChatStore = defineStore("chat", {
         pager.loading = true;
         pager.page += 1;
       }
-      
+
       try {
         const res = await api.get(`/messages/${conversationId}`, {
           params: { page: pager.page, per_page: 20 },
@@ -194,20 +194,8 @@ export const useChatStore = defineStore("chat", {
 
       this.messagesByConversation[convId].push(message);
 
-      // Update last message
-      const conv = this.conversations.find((c) => c.id === convId);
-      if (conv) {
-        conv.last_message = {
-          message: message.message,
-          time: message.created_at,
-        };
-
-        // Move conversation to top
-        this.conversations = [
-          conv,
-          ...this.conversations.filter((c) => c.id !== convId),
-        ];
-      }
+      // Update last message & reorder
+      this.updateConversationLastMessage(message);
     },
 
     /* ---------------- REALTIME (ECHO) ---------------- */
@@ -220,6 +208,7 @@ export const useChatStore = defineStore("chat", {
       const channel = window.Echo.private(`conversation.${conversationId}`)
         .listen(".MessageSent", (e: { message: Message }) => {
           const msg = e.message;
+          console.log('api');
 
           if (msg.sender.id !== userStore.user?.id) {
             this.pushMessage(msg);
@@ -339,34 +328,37 @@ export const useChatStore = defineStore("chat", {
     updateConversationLastMessage(message: Message) {
       const convId = message.conversation_id;
 
-      const conv = this.conversations.find((c) => c.id === convId);
-      if (!conv) return;
+      const index = this.conversations.findIndex((c) => c.id === convId);
+      if (index === -1) return;
 
-      conv.last_message = {
-        message: this.getLastMessagePreview(message),
-        time: message.created_at || new Date().toISOString(),
+      const updatedConv = {
+        ...this.conversations[index],
+        last_message: message,
+        time: message.created_at,
       };
 
       // Move conversation to top (WhatsApp behavior)
-      const index = this.conversations.findIndex((c) => c.id === convId);
-      if (index > 0) {
-        const [item] = this.conversations.splice(index, 1);
-        this.conversations.unshift(item);
-      }
+      this.conversations = [
+        updatedConv,
+        ...this.conversations.filter((c) => c.id !== convId),
+      ];
     },
-    getLastMessagePreview(msg: Message): string {
+    getLastMessagePreview(msg?: Message): string {
+      if (!msg) return "No messages yet";
+
       switch (msg.type) {
         case "image":
           return "📷 Photo";
         case "video":
           return "🎥 Video";
+        case "audio":
+          return "🎤 Voice message";
         case "file":
           return "📎 File";
         default:
-          return msg.message || "";
+          return msg.message?.trim() || "";
       }
     },
-
     incrementUnread(conversationId: number) {
       const conv = this.conversations.find((c) => c.id === conversationId);
       if (!conv) return;

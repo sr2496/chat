@@ -108,7 +108,7 @@
 
     <!-- Input Area (Reply Preview + Input) -->
     <MessageInput v-if="!isMediaComposerOpen" :replyingTo="replyingTo" @send-text="sendText"
-      @file-select="handleFileSelect" @cancel-reply="replyingTo = null" @open-emoji="openReactionPicker" />
+      @queue-files="handleQueueFiles" @cancel-reply="replyingTo = null" @open-emoji="openReactionPicker" />
 
 
 
@@ -235,6 +235,8 @@ interface QueuedFile {
   file: File;
   preview?: string;
   type: string;
+  name: string;
+  size: number;
   caption?: string;
 }
 
@@ -360,7 +362,7 @@ export default defineComponent({
         if (isMediaComposerOpen.value) {
           handleFileAdd(files);
         } else {
-          handleFileSelect(files);
+          handleQueueFiles(files);
         }
       }
     };
@@ -374,13 +376,26 @@ export default defineComponent({
       }
     };
 
-    const handleFileSelect = (files: File[]) => {
+    const handleQueueFiles = (payload: {
+      files: { file: File; type: string; preview?: string }[];
+      caption?: string;
+    }) => {
+      const files = payload.files.map(f => f.file);
+
       queuedFiles.value = buildQueuedFiles(files);
-      isMediaComposerOpen.value = true;
+
+      const isVoice = payload.files.some(f => f.type === 'audio');
+      if (isVoice) {
+        handleSendMedia(queuedFiles.value);
+      } else {
+        isMediaComposerOpen.value = true;
+      }
     };
 
-    const handleFileAdd = (files: File[]) => {
-      queuedFiles.value.push(...buildQueuedFiles(files));
+    const handleFileAdd = (files: QueuedFile[]) => {
+      queuedFiles.value.push(...files);
+      console.log(queuedFiles.value);
+
     };
 
     const buildQueuedFiles = (files: File[]) => {
@@ -445,6 +460,8 @@ export default defineComponent({
         uploadingMessages.value.push(uploadItem);
 
         try {
+          console.log(item.type);
+
           const form = new FormData();
           form.append("file", item.file);
           form.append("type", item.type);
@@ -884,7 +901,7 @@ export default defineComponent({
       isMediaComposerOpen,
       queuedFiles,
       handleSendMedia,
-      handleFileSelect,
+      handleQueueFiles,
       closeComposer,
       handleFileAdd,
       dragOver,

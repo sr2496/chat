@@ -37,12 +37,13 @@
     <div ref="inputBarRef"
       class="flex items-end gap-4 bg-gray-100 dark:bg-gray-700 rounded-3xl px-4 py-3 shadow-inner ring-1 ring-gray-200 dark:ring-gray-600 focus-within:ring-blue-500 dark:focus-within:ring-blue-400 transition-all">
       <!-- Emoji Button -->
-      <button @click="toggleEmojiPicker" class="text-gray-500 hover:text-yellow-500 transition text-2xl flex-shrink-0">
+      <button v-if="!isRecording" @click="toggleEmojiPicker"
+        class="text-gray-500 hover:text-yellow-500 transition text-2xl flex-shrink-0">
         😊
       </button>
 
       <!-- Attachment Button -->
-      <label class="cursor-pointer flex-shrink-0">
+      <label v-if="!isRecording" class="cursor-pointer flex-shrink-0">
         <input ref="fileInput" @change="handleFileSelect" type="file" multiple class="hidden"
           accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" />
         <svg class="w-6 h-6 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition" fill="none"
@@ -53,32 +54,117 @@
       </label>
 
       <!-- Text Input -->
-      <textarea v-model="inputText" @keydown.enter.exact.prevent="sendMessage" @keydown.enter.shift.exact="" rows="1"
-        placeholder="Type a message..."
+      <textarea v-show="!isRecording && !recordedAudio" v-model="inputText" @keydown.enter.exact.prevent="sendMessage"
+        @keydown.enter.shift.exact="" rows="1" placeholder="Type a message..."
         class="flex-1 bg-transparent outline-none text-sm resize-none max-h-32 overflow-y-auto py-0.5"
         ref="textareaRef" />
 
-      <!-- Right Side: Send or Voice Recording Button -->
+      <!-- Voice Mode UI (Recording or Review) -->
+      <div v-if="isRecording || recordedAudio" class="flex-1 flex items-center gap-3 overflow-hidden">
+        <!-- Delete Button -->
+        <button @click="isRecording ? cancelRecording() : deleteRecording()"
+          class="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2.227 2.227 0 0116.138 21H7.862a2.227 2.227 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+
+        <!-- Recording State (Waveform) -->
+        <div v-if="isRecording"
+          class="flex-1 flex items-center justify-center gap-1 h-8 bg-gray-50 dark:bg-gray-800 rounded-full px-4">
+          <div class="text-sm font-mono text-gray-900 dark:text-gray-100 min-w-[50px]">
+            {{ formatTime(recordingTime) }}
+          </div>
+          <div class="flex items-center gap-0.5 h-full opacity-70" :class="{ 'opacity-30': isPaused }">
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.6s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 1.1s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.9s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.7s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 1.2s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.8s"></div>
+          </div>
+          <span v-if="isPaused" class="text-xs text-orange-500 font-medium ml-2">PAUSED</span>
+        </div>
+
+        <!-- Review State (Player) -->
+        <div v-else class="flex-1 flex items-center gap-3 bg-blue-50 dark:bg-gray-800 rounded-full px-3 h-10">
+          <button @click="togglePreview" class="text-blue-600 dark:text-blue-400">
+            <svg v-if="!isPlayingPreview" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <svg v-else class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+          </button>
+
+          <!-- Simple Progress Bar -->
+          <div class="flex-1 h-1 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+            <div class="h-full bg-blue-500 transition-all duration-100" :style="{ width: previewProgress + '%' }"></div>
+          </div>
+
+          <span class="text-xs text-gray-500 font-mono">{{ formatTime(recordedAudio?.duration || 0) }}</span>
+        </div>
+      </div>
+
+      <!-- Right Side: Send or Mic -->
       <div class="relative flex-shrink-0">
         <transition mode="out-in" enter-active-class="transition duration-200 ease-out"
           enter-from-class="opacity-0 scale-75" enter-to-class="opacity-100 scale-100"
           leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100"
           leave-to-class="opacity-0 scale-75">
 
-          <!-- Send Button (when typing) -->
-          <button v-if="canSend && !isRecording" @click="sendMessage"
+          <!-- Send Text Button (when typing) -->
+          <button v-if="canSend && !isRecording && !recordedAudio" @click="sendMessage"
             class="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition shadow-lg"
-            key="send">
+            key="send-text">
             <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </button>
 
-          <!-- Mic Button (when empty) -->
-          <div v-else-if="!isRecording" key="mic">
-            <button @mousedown.prevent="startRecording" @touchstart.prevent="startRecording" @mouseup="stopRecording"
-              @touchend="stopRecording" @mouseleave="cancelRecording" @touchcancel="cancelRecording"
+          <!-- Recording Controls (Pause/Stop) -->
+          <div v-else-if="isRecording" class="flex items-center gap-2" key="recording-controls">
+            <!-- Pause/Resume -->
+            <button @click="isPaused ? resumeRecording() : pauseRecording()"
+              class="w-11 h-11 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-300 transition shadow-lg">
+              <svg v-if="!isPaused" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+
+            <!-- Stop (Checkmark) -->
+            <button @click="stopRecording"
+              class="w-11 h-11 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition shadow-lg">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Review Send Button -->
+          <button v-else-if="recordedAudio" @click="sendVoiceMessage"
+            class="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition shadow-lg"
+            key="send-voice">
+            <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+
+          <!-- Mic Button (Start Recording) -->
+          <div v-else key="mic">
+            <button @click="startRecording"
               class="w-11 h-11 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 shadow-lg">
               <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 14a3 3 0 003-3V4a3 3 0 00-6 0v7a3 3 0 003 3z" />
@@ -87,34 +173,6 @@
               </svg>
             </button>
           </div>
-
-          <!-- Recording State UI -->
-          <div v-else key="recording" class="flex items-center gap-3">
-            <!-- Red recording dot + timer -->
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <span class="text-sm font-medium text-red-600 dark:text-red-400">{{ formatTime(recordingTime) }}</span>
-            </div>
-
-            <!-- Cancel hint -->
-            <div class="flex items-center text-gray-500 text-sm font-medium opacity-0 transition-opacity duration-300"
-              :class="{ 'opacity-100': showCancelHint }">
-              ← Slide to cancel
-            </div>
-
-            <!-- Lock hint (optional future feature) -->
-            <!-- ↑ Slide up to lock -->
-          </div>
-        </transition>
-
-        <!-- Cancel Overlay (when sliding left) -->
-        <transition name="fade">
-          <div v-if="isRecording && isCancelling"
-            class="absolute inset-0 bg-red-500/90 rounded-full flex items-center justify-center text-white font-bold text-lg backdrop-blur-sm">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
         </transition>
       </div>
     </div>
@@ -122,11 +180,9 @@
     <!-- Emoji Picker (positioned above input) -->
     <teleport to="body">
       <div v-if="showEmojiPicker"
-        class="fixed z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 border border-gray-200 dark:border-gray-700"
+        class="fixed z-50 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
         :style="emojiPickerStyle" ref="emojiPickerRef">
-        <!-- Replace with your actual emoji picker component -->
-        <div class="text-center text-gray-500 text-sm">Emoji Picker Here</div>
-        <!-- Example: <EmojiPicker @emoji="insertEmoji" /> -->
+        <EmojiPicker :native="true" @select="onSelectEmoji" theme="auto" />
       </div>
     </teleport>
   </div>
@@ -134,6 +190,8 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue';
+import EmojiPicker, { type EmojiExt } from 'vue3-emoji-picker';
+import 'vue3-emoji-picker/css';
 
 const props = defineProps<{
   replyingTo?: {
@@ -143,7 +201,7 @@ const props = defineProps<{
   } | null;
 }>();
 
-const emit = defineEmits(['send-text', 'file-select', 'cancel-reply']);
+const emit = defineEmits(['send-text', 'queue-files', 'cancel-reply']);
 
 
 
@@ -154,9 +212,27 @@ const inputBarRef = ref<HTMLElement | null>(null);
 const emojiPickerRef = ref<HTMLElement | null>(null);
 
 const isRecording = ref(false);
+const isPaused = ref(false);
 const isCancelling = ref(false);
 const showCancelHint = ref(false);
 const recordingTime = ref(0);
+const recordedAudio = ref<{ blob: Blob; url: string; duration: number } | null>(null);
+const isPlayingPreview = ref(false);
+const previewAudio = new Audio();
+const previewProgress = ref(0);
+
+// Watch for preview end
+previewAudio.onended = () => {
+  isPlayingPreview.value = false;
+  previewProgress.value = 0;
+};
+
+// Monitor preview progress
+previewAudio.ontimeupdate = () => {
+  if (previewAudio.duration) {
+    previewProgress.value = (previewAudio.currentTime / previewAudio.duration) * 100;
+  }
+};
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let timerInterval: number | null = null;
@@ -164,6 +240,12 @@ let startX = 0;
 
 const showEmojiPicker = ref(false);
 const emojiPickerStyle = ref({ bottom: '0', left: '0' });
+
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
 
 const canSend = computed(() => inputText.value.trim().length > 0);
 
@@ -184,16 +266,24 @@ const handleFileSelect = (e: Event) => {
 
   const files = Array.from(input.files);
 
-  emit('file-select', files);
+  const newFiles = Array.from(input.files).map(file => ({
+    file,
+    type: file.type,
+    preview: file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : undefined
+  }));
+
+  emit('queue-files', {
+    files: newFiles,
+    caption: ''
+  });
   input.value = '';
   nextTick(autoResize);
-
 
 };
 
 
 const senderNameColor = computed(() => {
-  const name = props.replyingTo?.value?.senderName || 'unknown';
+  const name = props.replyingTo?.senderName || 'unknown';
   const colors = [
     'text-blue-600 dark:text-blue-400',
     'text-purple-600 dark:text-purple-400',
@@ -250,6 +340,14 @@ const handleClickOutside = (e: MouseEvent) => {
   }
 };
 
+const onSelectEmoji = (emoji: EmojiExt) => {
+  inputText.value += emoji.i;
+  nextTick(() => {
+    textareaRef.value?.focus();
+    autoResize();
+  });
+};
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
   nextTick(() => {
@@ -270,22 +368,21 @@ const startRecording = (e: MouseEvent | TouchEvent) => {
   showCancelHint.value = false;
   recordingTime.value = 0;
   audioChunks = [];
+  isRecording.value = true;
+  isPaused.value = false;
+  recordedAudio.value = null; // Clear previous recording
 
   if (timerInterval) clearInterval(timerInterval);
-
-  timerInterval = window.setInterval(() => {
-    recordingTime.value++;
-  }, 1000);
-
-  // Get touch/mouse start position for slide-to-cancel
-  if ('touches' in e) {
-    startX = e.touches[0].clientX;
-  } else {
-    startX = e.clientX;
-  }
+  startTimer();
 
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
+      // Check if user cancelled while waiting
+      if (!isRecording.value) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
+
       mediaRecorder = new MediaRecorder(stream);
       mediaRecorder.ondataavailable = event => {
         audioChunks.push(event.data);
@@ -295,30 +392,92 @@ const startRecording = (e: MouseEvent | TouchEvent) => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         const duration = recordingTime.value;
 
-        if (!isCancelling.value && duration > 1) {
-          // Send voice message
-          emit('send-voice', audioBlob, duration);
-        }
-
-        // Cleanup
+        // Cleanup stream
         stream.getTracks().forEach(track => track.stop());
         audioChunks = [];
+
+        if (!isCancelling.value) {
+          // Provide for Review instead of auto-sending
+          const url = URL.createObjectURL(audioBlob);
+          recordedAudio.value = { blob: audioBlob, url, duration };
+          // isRecording is already false here
+        }
       };
 
       mediaRecorder.start();
-      isRecording.value = true;
     })
     .catch(err => {
       console.error('Microphone access denied', err);
       isRecording.value = false;
+      stopTimer();
     });
 };
+
+const startTimer = () => {
+  timerInterval = window.setInterval(() => {
+    recordingTime.value++;
+  }, 1000);
+};
+
+const stopTimer = () => {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+};
+
+const pauseRecording = () => {
+  if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+  mediaRecorder.pause();
+  isPaused.value = true;
+  stopTimer();
+};
+
+const resumeRecording = () => {
+  if (!mediaRecorder || mediaRecorder.state !== 'paused') return;
+  mediaRecorder.resume();
+  isPaused.value = false;
+  startTimer();
+};
+
 const stopRecording = () => {
   if (!isRecording.value || !mediaRecorder) return;
-
-  mediaRecorder.stop();
+  mediaRecorder.stop(); // triggers onstop -> sets recordedAudio
   isRecording.value = false;
-  if (timerInterval) clearInterval(timerInterval);
+  stopTimer();
+};
+
+const togglePreview = () => {
+  if (!recordedAudio.value) return;
+
+  if (isPlayingPreview.value) {
+    previewAudio.pause();
+    isPlayingPreview.value = false;
+  } else {
+    previewAudio.src = recordedAudio.value.url;
+    previewAudio.play();
+    isPlayingPreview.value = true;
+  }
+};
+
+const deleteRecording = () => {
+  if (recordedAudio.value) {
+    URL.revokeObjectURL(recordedAudio.value.url);
+  }
+  recordedAudio.value = null;
+  isRecording.value = false;
+  isPaused.value = false;
+};
+
+const sendVoiceMessage = () => {
+  if (!recordedAudio.value) return;
+
+  const file = new File([recordedAudio.value.blob], `voice_message_${Date.now()}.webm`, { type: 'audio/webm' });
+  emit('queue-files', {
+    files: [{ file, type: 'audio' }],
+    caption: ''
+  });
+
+  // Cleanup
+  deleteRecording();
 };
 
 const cancelRecording = () => {
@@ -327,26 +486,11 @@ const cancelRecording = () => {
   isCancelling.value = true;
   setTimeout(() => {
     stopRecording();
-    isCancelling.value = false;
+    // Do NOT reset isCancelling here, wait for next start
   }, 300);
 };
 
-// Slide to cancel detection (mobile + desktop drag)
-const onMove = (e: MouseEvent | TouchEvent) => {
-  if (!isRecording.value) return;
 
-  const currentX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-  const deltaX = startX - currentX;
-
-  if (deltaX > 80) {
-    showCancelHint.value = true;
-    if (deltaX > 150) {
-      cancelRecording();
-    }
-  } else {
-    showCancelHint.value = false;
-  }
-};
 </script>
 
 <style scoped>
@@ -357,5 +501,22 @@ const onMove = (e: MouseEvent | TouchEvent) => {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 2px;
+}
+
+/* Waveform animation */
+@keyframes wave {
+
+  0%,
+  100% {
+    height: 4px;
+  }
+
+  50% {
+    height: 16px;
+  }
+}
+
+.animate-wave {
+  animation: wave 1s infinite ease-in-out;
 }
 </style>
