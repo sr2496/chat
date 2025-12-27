@@ -7,7 +7,7 @@
     <UserAvatar v-if="!isSent && isGroup" :avatar="message.sender?.avatar" :name="message.sender?.name || 'User'"
       size="sm" :is-online="message.sender?.online" :show-online="false" />
 
-    <div class="max-w-[75%]" @contextmenu.prevent="$emit('context-menu', $event, message)">
+    <div class="max-w-[75%]">
       <div class="relative">
         <div class="relative px-4 py-2 rounded-2xl shadow-sm overflow-hidden" :class="bubbleClasses">
           <!-- Tail -->
@@ -36,7 +36,6 @@
             </span>
           </div>
 
-          <!-- Replied Message Preview -->
           <!-- Replied Message Preview – Polished & Premium -->
           <div v-if="message.reply_to" @click="$emit('scroll-to-message', message.reply_to.id)" class="
             mb-3
@@ -182,11 +181,36 @@
           <div class="flex justify-end items-center gap-1 mt-2">
             <span class="text-[11px] opacity-70">{{
               formatTime(message.created_at)
-            }}</span>
+              }}</span>
             <span v-if="isSent" class="text-[11px]" :class="readClass">
               {{ message?.read_by_count > 0 ? "✓✓" : "✓" }}
             </span>
           </div>
+
+          <!-- Message actions (⋮) inside bubble -->
+          <button @click.stop="$emit('open-actions', $event, message)" class="
+              absolute top-2 right-2
+              w-5 h-5
+              flex items-center justify-center
+              rounded-full
+              bg-white/90 dark:bg-gray-800/90
+              backdrop-blur-sm
+              shadow-md
+              border border-gray-200 dark:border-gray-700
+              text-gray-700 dark:text-gray-200
+              opacity-0 group-hover:opacity-100
+              hover:bg-gray-100 dark:hover:bg-gray-700
+              hover:scale-110
+              transition-all duration-200
+              z-30
+            ">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M6.7 9.3a1 1 0 011.4 0L12 13.17l3.9-3.88a1 1 0 111.4 1.42l-4.6 4.6a1 1 0 01-1.4 0l-4.6-4.6a1 1 0 010-1.42z" />
+            </svg>
+
+          </button>
+
         </div>
 
         <!-- Reactions -->
@@ -198,11 +222,12 @@
           </span>
         </div>
 
+        <!-- Reaction Button -->
         <transition name="fade">
           <button @click.stop="$emit('open-emoji', message.id)"
-            class="absolute top-1/2 -translate-y-1/2 p-2 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto z-10"
-            :class="isSent ? '-left-12' : '-right-12'">
-            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto z-10"
+            :class="isSent ? '-left-9' : '-right-9'">
+            <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -230,7 +255,7 @@ const props = defineProps<{
 }>();
 
 
-const emit = defineEmits(["cancel-upload", "open-emoji", "context-menu", "scroll-to-message"]);
+const emit = defineEmits(["cancel-upload", "open-emoji", "open-actions", "scroll-to-message"]);
 
 const formatSize = (bytes?: number) => {
   if (!bytes) return "0 KB";

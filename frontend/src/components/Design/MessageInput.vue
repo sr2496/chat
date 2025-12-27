@@ -11,7 +11,7 @@
           <div class="flex-1 min-w-0">
             <!-- Colorful Sender Name -->
             <p class="text-xs font-semibold truncate" :class="senderNameColor">
-              Replying to {{ replyingTo.senderName || 'someone' }}
+              {{ replyingTo.senderName || 'someone' }}
             </p>
 
             <!-- Reply Body -->
@@ -58,31 +58,65 @@
         class="flex-1 bg-transparent outline-none text-sm resize-none max-h-32 overflow-y-auto py-0.5"
         ref="textareaRef" />
 
-      <!-- Right Button: Mic or Send -->
-      <transition mode="out-in" enter-active-class="transition duration-200 ease-out"
-        enter-from-class="opacity-0 scale-75" enter-to-class="opacity-100 scale-100"
-        leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100"
-        leave-to-class="opacity-0 scale-75">
-        <button v-if="canSend" @click="sendMessage"
-          class="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition shadow-lg flex-shrink-0"
-          key="send">
-          <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-          </svg>
-        </button>
+      <!-- Right Side: Send or Voice Recording Button -->
+      <div class="relative flex-shrink-0">
+        <transition mode="out-in" enter-active-class="transition duration-200 ease-out"
+          enter-from-class="opacity-0 scale-75" enter-to-class="opacity-100 scale-100"
+          leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100"
+          leave-to-class="opacity-0 scale-75">
 
-        <button v-else @click="startVoiceRecording"
-          class="w-11 h-11 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 flex-shrink-0"
-          key="mic">
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 14a3 3 0 003-3V4a3 3 0 00-6 0v7a3 3 0 003 3z" />
-            <path d="M5 11a7 7 0 0014 0h-2a5 5 0 01-10 0H5z" />
-            <path d="M12 19v4m-3 0h6" />
-          </svg>
+          <!-- Send Button (when typing) -->
+          <button v-if="canSend && !isRecording" @click="sendMessage"
+            class="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition shadow-lg"
+            key="send">
+            <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
 
-        </button>
-      </transition>
+          <!-- Mic Button (when empty) -->
+          <div v-else-if="!isRecording" key="mic">
+            <button @mousedown.prevent="startRecording" @touchstart.prevent="startRecording" @mouseup="stopRecording"
+              @touchend="stopRecording" @mouseleave="cancelRecording" @touchcancel="cancelRecording"
+              class="w-11 h-11 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 shadow-lg">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 14a3 3 0 003-3V4a3 3 0 00-6 0v7a3 3 0 003 3z" />
+                <path d="M5 11a7 7 0 0014 0h-2a5 5 0 01-10 0H5z" />
+                <path d="M12 19v4m-3 0h6" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Recording State UI -->
+          <div v-else key="recording" class="flex items-center gap-3">
+            <!-- Red recording dot + timer -->
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <span class="text-sm font-medium text-red-600 dark:text-red-400">{{ formatTime(recordingTime) }}</span>
+            </div>
+
+            <!-- Cancel hint -->
+            <div class="flex items-center text-gray-500 text-sm font-medium opacity-0 transition-opacity duration-300"
+              :class="{ 'opacity-100': showCancelHint }">
+              ← Slide to cancel
+            </div>
+
+            <!-- Lock hint (optional future feature) -->
+            <!-- ↑ Slide up to lock -->
+          </div>
+        </transition>
+
+        <!-- Cancel Overlay (when sliding left) -->
+        <transition name="fade">
+          <div v-if="isRecording && isCancelling"
+            class="absolute inset-0 bg-red-500/90 rounded-full flex items-center justify-center text-white font-bold text-lg backdrop-blur-sm">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+        </transition>
+      </div>
     </div>
 
     <!-- Emoji Picker (positioned above input) -->
@@ -119,6 +153,14 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const inputBarRef = ref<HTMLElement | null>(null);
 const emojiPickerRef = ref<HTMLElement | null>(null);
 
+const isRecording = ref(false);
+const isCancelling = ref(false);
+const showCancelHint = ref(false);
+const recordingTime = ref(0);
+let mediaRecorder: MediaRecorder | null = null;
+let audioChunks: Blob[] = [];
+let timerInterval: number | null = null;
+let startX = 0;
 
 const showEmojiPicker = ref(false);
 const emojiPickerStyle = ref({ bottom: '0', left: '0' });
@@ -222,8 +264,88 @@ onUnmounted(() => {
 });
 
 // Placeholder for voice
-const startVoiceRecording = () => {
-  console.log('Voice recording started...');
+const startRecording = (e: MouseEvent | TouchEvent) => {
+  // Reset state
+  isCancelling.value = false;
+  showCancelHint.value = false;
+  recordingTime.value = 0;
+  audioChunks = [];
+
+  if (timerInterval) clearInterval(timerInterval);
+
+  timerInterval = window.setInterval(() => {
+    recordingTime.value++;
+  }, 1000);
+
+  // Get touch/mouse start position for slide-to-cancel
+  if ('touches' in e) {
+    startX = e.touches[0].clientX;
+  } else {
+    startX = e.clientX;
+  }
+
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const duration = recordingTime.value;
+
+        if (!isCancelling.value && duration > 1) {
+          // Send voice message
+          emit('send-voice', audioBlob, duration);
+        }
+
+        // Cleanup
+        stream.getTracks().forEach(track => track.stop());
+        audioChunks = [];
+      };
+
+      mediaRecorder.start();
+      isRecording.value = true;
+    })
+    .catch(err => {
+      console.error('Microphone access denied', err);
+      isRecording.value = false;
+    });
+};
+const stopRecording = () => {
+  if (!isRecording.value || !mediaRecorder) return;
+
+  mediaRecorder.stop();
+  isRecording.value = false;
+  if (timerInterval) clearInterval(timerInterval);
+};
+
+const cancelRecording = () => {
+  if (!isRecording.value) return;
+
+  isCancelling.value = true;
+  setTimeout(() => {
+    stopRecording();
+    isCancelling.value = false;
+  }, 300);
+};
+
+// Slide to cancel detection (mobile + desktop drag)
+const onMove = (e: MouseEvent | TouchEvent) => {
+  if (!isRecording.value) return;
+
+  const currentX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+  const deltaX = startX - currentX;
+
+  if (deltaX > 80) {
+    showCancelHint.value = true;
+    if (deltaX > 150) {
+      cancelRecording();
+    }
+  } else {
+    showCancelHint.value = false;
+  }
 };
 </script>
 

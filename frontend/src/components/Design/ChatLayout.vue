@@ -95,8 +95,8 @@ import ChatList from "./ChatList.vue";
 import ChatWindow from "./ChatWindow.vue";
 import { useUserStore } from "../../stores/user";
 import { api } from "../../axios";
-import NewChatModal from "../Chat/NewChatModal .vue";
-import CreateGroupModal from "../Chat/CreateGroupModal.vue";
+import NewChatModal from "./NewChatModal .vue";
+import CreateGroupModal from "./CreateGroupModal.vue";
 
 export default defineComponent({
   components: { ChatList, ChatWindow, NewChatModal, CreateGroupModal },

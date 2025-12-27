@@ -59,7 +59,7 @@
             </div>
           </div>
         </div>
-        <div v-else key="messages" class="relative">
+        <div v-else key="messages" class="min-h-full flex flex-col justify-end">
           <template v-for="(msg, index) in messages" :key="msg.id">
             <DateSeparator v-if="shouldShowDate(index)" :day="getMessageDay(msg.created_at)" />
             <!-- Unread Divider -->
@@ -71,7 +71,7 @@
               <div class="h-px flex-grow bg-gray-200 dark:bg-gray-700" />
             </div>
             <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg" :setMessageRef="setMessageRef"
-              :getMessageDay="getMessageDay" @open-emoji="openReactionPicker" @context-menu="openContextMenu"
+              :getMessageDay="getMessageDay" @open-emoji="openReactionPicker" @open-actions="openContextMenu"
               @scroll-to-message="scrollToMessage" />
           </template>
 
@@ -117,7 +117,7 @@
       <transition name="reaction-fly">
         <div v-if="reactionPickerMessageId" class="fixed z-50 pointer-events-none"
           :style="{ top: pickerTop + 'px', left: pickerLeft + 'px' }">
-          <div
+          <div data-reaction-menu="true"
             class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-2.5 border border-gray-200 dark:border-gray-700 flex items-center gap-2 pointer-events-auto">
             <button v-for="emoji in commonEmojis" :key="emoji" @click="addReaction(reactionPickerMessageId, emoji)"
               class="text-2xl hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 transition-all duration-150">
@@ -127,19 +127,83 @@
         </div>
       </transition>
     </teleport>
+    <!-- Right-Click Context Menu -->
     <teleport to="body">
       <transition name="fade-scale">
-        <div v-if="contextMenu"
-          class="fixed z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1 min-w-[160px]"
-          :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }" @click.stop @contextmenu.stop.prevent>
-          <button @click="replyToMessage(contextMenu.message)"
-            class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-            </svg>
-            Reply
-          </button>
+        <div v-if="contextMenu" class="fixed z-50" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+          @click.stop @contextmenu.prevent>
+          <div data-context-menu="true" class="
+          bg-white dark:bg-gray-800
+          rounded-2xl
+          shadow-2xl
+          border border-gray-200 dark:border-gray-700
+          py-2
+          min-w-[200px]
+          overflow-hidden
+          backdrop-blur-sm
+          ring-1 ring-black/5 dark:ring-white/10
+        ">
+            <!-- Reply -->
+            <button @click="replyToMessage(contextMenu.message)" class="
+            w-full px-5 py-3.5
+            text-left text-sm font-medium
+            text-gray-800 dark:text-gray-100
+            flex items-center gap-4
+            hover:bg-gray-100 dark:hover:bg-gray-700
+            transition-all duration-150
+          ">
+              <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              <span>Reply</span>
+            </button>
+
+            <!-- Copy Text (only for text messages) -->
+            <button v-if="!contextMenu.message.type || contextMenu.message.type === 'text'"
+              @click="copyMessageText(contextMenu.message)" class="
+            w-full px-5 py-3.5
+            text-left text-sm font-medium
+            text-gray-800 dark:text-gray-100
+            flex items-center gap-4
+            hover:bg-gray-100 dark:hover:bg-gray-700
+            transition-all duration-150
+          ">
+              <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>Copy Text</span>
+            </button>
+
+            <!-- Forward (optional future feature) -->
+            <!--
+        <button class="...">
+          <svg ...>Forward icon</svg>
+          Forward
+        </button>
+        -->
+
+            <hr class="my-1 border-gray-200 dark:border-gray-700" />
+
+            <!-- Delete (only for own messages) -->
+            <button v-if="isSent(contextMenu.message)" @click="deleteMessage(contextMenu.message.id)" class="
+            w-full px-5 py-3.5
+            text-left text-sm font-medium
+            text-red-600 dark:text-red-400
+            flex items-center gap-4
+            hover:bg-red-50 dark:hover:bg-red-900/30
+            transition-all duration-150
+          ">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2.227 2.227 0 0116.138 21H7.862a2.227 2.227 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span>Delete Message</span>
+            </button>
+          </div>
         </div>
       </transition>
     </teleport>
@@ -200,59 +264,6 @@ export default defineComponent({
     } | null>(null);
 
     const replyingTo = ref<{ id?: number; senderName?: string; body: string } | null>(null);
-
-    const openContextMenu = (e: MouseEvent, message: any) => {
-      e.preventDefault();
-
-      let x = e.clientX;
-      let y = e.clientY;
-
-      // If menu would go off-screen to the right, flip it left
-      const menuWidth = 180; // approx width of your menu
-      if (x + menuWidth > window.innerWidth) {
-        x = window.innerWidth - menuWidth - 10; // 10px margin
-      }
-
-      // Optional: flip up if near bottom
-      const menuHeight = 60;
-      if (y + menuHeight > window.innerHeight) {
-        y = window.innerHeight - menuHeight - 10;
-      }
-
-      contextMenu.value = {
-        message,
-        x,
-        y,
-      };
-      console.log(contextMenu);
-
-    };
-
-    const replyToMessage = (message: any) => {
-      replyingTo.value = {
-        id: message.id,
-        senderName: message.sender?.id === currentUserId.value ? "You" : message.sender?.name || "Unknown",
-        body:
-          message.type === "text"
-            ? message.message
-            : message.type === "image"
-              ? "[Image]"
-              : message.type === "video"
-                ? "[Video]"
-                : "[File]",
-      };
-      contextMenu.value = null;
-    };
-
-    const closeContextMenu = (e: Event) => {
-      const menu = document.querySelector('.fixed.z-50.bg-white'); // your menu class
-      const target = e.target as Node;
-
-      if (menu && !menu.contains(target)) {
-        contextMenu.value = null;
-      }
-    };
-
 
     const loadingMore = computed(() => {
       const convId = chatStore.activeConversationId;
@@ -640,6 +651,74 @@ export default defineComponent({
       }
     };
 
+    const openContextMenu = (e: MouseEvent, message: any) => {
+      e.preventDefault();
+
+      if (contextMenu.value && contextMenu.value?.message?.id === message.id) {
+        // If the same message's context menu is already open, close it
+        closeAllPopups(e);
+        return;
+      }
+
+      let x = e.clientX;
+      let y = e.clientY;
+
+      // If menu would go off-screen to the right, flip it left
+      const menuWidth = 180; // approx width of your menu
+      if (x + menuWidth > window.innerWidth) {
+        x = window.innerWidth - menuWidth - 10; // 10px margin
+      }
+
+      // Optional: flip up if near bottom
+      const menuHeight = 60;
+      if (y + menuHeight > window.innerHeight) {
+        y = window.innerHeight - menuHeight - 10;
+      }
+
+      contextMenu.value = {
+        message,
+        x,
+        y,
+      };
+    };
+
+    const replyToMessage = (message: any) => {
+      replyingTo.value = {
+        id: message.id,
+        senderName: message.sender?.id === currentUserId.value ? "You" : message.sender?.name || "Unknown",
+        body:
+          message.type === "text"
+            ? message.message
+            : message.type === "image"
+              ? "[Image]"
+              : message.type === "video"
+                ? "[Video]"
+                : "[File]",
+      };
+      contextMenu.value = null;
+    };
+
+    const closeAllPopups = (e: MouseEvent) => {
+      const target = e.target as Node;
+
+      // Close context menu
+      const contextEl = document.querySelector('[data-context-menu="true"]');
+      if (contextMenu.value && contextEl && !contextEl.contains(target)) {
+        contextMenu.value = null;
+      }
+
+      const pickerEl = document.querySelector('[data-reaction-menu="true"]');
+      if (reactionPickerMessageId.value && pickerEl && !pickerEl.contains(target)) {
+        reactionPickerMessageId.value = null;
+      }
+
+    };
+
+    const copyMessageText = (message: any) => {
+      navigator.clipboard.writeText(message.message || '');
+      contextMenu.value = null;
+    };
+
     watch(
       () => chatStore.activeConversationId,
       async (id, oldId) => {
@@ -757,19 +836,9 @@ export default defineComponent({
       reactionPickerMessageId.value = null;
     };
 
-    const closeReactionPickerOnClickOutside = (e: MouseEvent) => {
-      if (!reactionPickerMessageId.value) return;
-      const picker = document.querySelector(".fixed.z-50");
-      const target = e.target as Node;
-
-      if (picker && !picker.contains(target)) {
-        reactionPickerMessageId.value = null;
-      }
-    };
 
     onMounted(() => {
-      document.addEventListener('click', closeContextMenu);
-      document.addEventListener("click", closeReactionPickerOnClickOutside);
+      document.addEventListener('click', closeAllPopups);
       const el = scrollContainer.value;
       if (!el) return;
       el.addEventListener("scroll", onScrollHandler);
@@ -780,8 +849,7 @@ export default defineComponent({
     });
 
     onUnmounted(() => {
-      document.removeEventListener('click', closeContextMenu);
-      document.removeEventListener("click", closeReactionPickerOnClickOutside);
+      document.removeEventListener('click', closeAllPopups);
       const el = scrollContainer.value;
       if (!el) return;
       el.removeEventListener("scroll", onScrollHandler);
@@ -826,6 +894,7 @@ export default defineComponent({
       openContextMenu,
       replyToMessage,
       scrollToMessage,
+      copyMessageText,
     };
   },
 });

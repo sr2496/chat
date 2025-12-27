@@ -132,9 +132,9 @@ export const useChatStore = defineStore("chat", {
       const conv = this.conversations.find((c) => c.id === conversationId);
       if (conv) conv.unread_count = 0;
 
-      if (!this.messagesByConversation[conversationId]) {
-        this.loadMessages(conversationId);
-      }
+      // if (!this.messagesByConversation[conversationId]) {
+      //   this.loadMessages(conversationId);
+      // }
     },
 
     /* ---------------- MESSAGES ---------------- */
@@ -159,7 +159,7 @@ export const useChatStore = defineStore("chat", {
         pager.loading = true;
         pager.page += 1;
       }
-
+      
       try {
         const res = await api.get(`/messages/${conversationId}`, {
           params: { page: pager.page, per_page: 20 },
