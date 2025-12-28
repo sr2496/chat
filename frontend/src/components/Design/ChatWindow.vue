@@ -534,15 +534,16 @@ export default defineComponent({
         (m: any) => !m.read_by_me && m.sender.id !== currentUserId.value
       );
 
+
       if (!firstUnread) {
-        console.log('this');
-        
         scrollToBottom();
         return;
       }
 
       const el = messageRefs.get(firstUnread.id);
+      console.log(el, scrollContainer.value);
       if (el && scrollContainer.value) {
+        
         el.scrollIntoView({
           behavior: "smooth",
           block: "center",
@@ -560,8 +561,6 @@ export default defineComponent({
         el.scrollTop = el.scrollHeight - el.clientHeight;
       };
 
-      console.log(el.scrollTop);
-      
       // Run multiple times to guarantee layout stability
       scroll();
       requestAnimationFrame(scroll);
@@ -595,7 +594,7 @@ export default defineComponent({
 
     };
 
-   const handleScroll = () => {
+    const handleScroll = () => {
       const el = scrollContainer.value;
       if (!el || loadingMore.value || !chatStore.activeConversationId) return;
 
@@ -743,7 +742,8 @@ export default defineComponent({
         messagesLoading.value = true;
 
         await chatStore.loadMessages(id, false);
-
+        chatStore.computeFirstUnread(id);
+        
         messagesLoading.value = false;
 
         await nextTick();

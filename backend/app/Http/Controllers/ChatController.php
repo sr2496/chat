@@ -126,8 +126,8 @@ class ChatController extends Controller
 
             $isImage = str_starts_with($serverMime, 'image/');
             $isVideo = str_starts_with($serverMime, 'video/');
-            
-            // Check both server and client mime for audio. 
+
+            // Check both server and client mime for audio.
             // WebM is often detected as video by server (container), but client knows it's audio.
             $isAudio = str_starts_with($serverMime, 'audio/') || str_starts_with($clientMime, 'audio/');
 
@@ -167,23 +167,35 @@ class ChatController extends Controller
 
         return new MessageResource($message->load('sender'));
     }
-    
+
     public function messages(Request $request, $conversationId)
     {
-        $perPage = $request->get('per_page', 20);
+        $limit = $request->get('limit', 30);
+        $beforeId = $request->get('before_id');
 
-        $messages = Message::with(['sender', 'readers', 'reactions.user', 'replyTo.sender'])
+        $query = Message::with(['sender', 'readers', 'reactions.user', 'replyTo.sender'])
             ->where('conversation_id', $conversationId)
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-
+            ->orderBy('id', 'desc');
         // Reverse items so frontend gets oldest → newest
-        $messages->setCollection(
-            $messages->getCollection()->reverse()->values()
-        );
+        if ($beforeId) {
+            $query->where('id', '<', $beforeId);
+        }
 
-        return MessageResource::collection($messages);
+        $messages = $query
+            ->limit($limit)
+            ->get()
+            ->reverse()
+            ->values();
+
+        return response()->json([
+            'data' => MessageResource::collection($messages),
+            'meta' => [
+                'has_more' => $messages->count() >= $limit,
+                'oldest_id' => $messages->first()?->id,
+            ],
+        ]);
     }
+
 
     public function markAsRead(Request $request)
     {

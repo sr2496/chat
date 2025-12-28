@@ -33,7 +33,7 @@ export const useChatStore = defineStore("chat", {
     pagination: {} as Record<
       number,
       {
-        page: number;
+        beforeId: number | null;
         hasMore: boolean;
         loading: boolean;
       }
@@ -117,58 +117,57 @@ export const useChatStore = defineStore("chat", {
 
     setActiveConversation(conversationId: number) {
       this.activeConversationId = conversationId;
+    },
 
+    computeFirstUnread(conversationId: number) {
       const msgs = this.messagesByConversation[conversationId] || [];
+      const myId = useUserStore().user?.id;
 
       const firstUnread = msgs.find(
-        (m) => !m.read_by_me && m.sender.id !== useUserStore().user?.id
+        (m) => !m.read_by_me && m.sender.id !== myId
       );
 
-      this.firstUnreadByConversation[conversationId] = firstUnread
-        ? firstUnread.id
-        : null;
-
-      // Reset unread count
-      const conv = this.conversations.find((c) => c.id === conversationId);
-      if (conv) conv.unread_count = 0;
-
-      // if (!this.messagesByConversation[conversationId]) {
-      //   this.loadMessages(conversationId);
-      // }
+      this.firstUnreadByConversation[conversationId] = firstUnread?.id ?? null;
     },
 
     /* ---------------- MESSAGES ---------------- */
 
-    async loadMessages(conversationId: number, append = false) {
+    async loadMessages(conversationId: number, loadMore = false) {
       if (!this.pagination[conversationId]) {
         this.pagination[conversationId] = {
-          page: 1,
+          beforeId: null,
           hasMore: true,
           loading: false,
         };
       }
 
       const pager = this.pagination[conversationId];
+      if (pager.loading || (!pager.hasMore && loadMore)) return;
 
-      if (pager.loading || (!pager.hasMore && append)) return;
+      pager.loading = true;
 
-      if (!append) {
-        pager.page = 1;
-        pager.hasMore = true;
-      } else {
-        pager.loading = true;
-        pager.page += 1;
+      let perPage = 20;
+
+      const conversation = this.conversations.find(
+        (c) => c.id === conversationId
+      );
+      if (conversation && conversation.unread_count) {
+        perPage = conversation.unread_count + 5; // load all unread + a few extras
       }
 
       try {
         const res = await api.get(`/messages/${conversationId}`, {
-          params: { page: pager.page, per_page: 20 },
+          params: {
+            limit: loadMore ? perPage : perPage, // load more initially
+            before_id: loadMore ? pager.beforeId : null,
+          },
         });
 
         const msgs = res.data.data;
         const meta = res.data.meta;
 
-        if (append) {
+        if (loadMore) {
+          // PREPEND older messages
           this.messagesByConversation[conversationId] = [
             ...msgs,
             ...(this.messagesByConversation[conversationId] || []),
@@ -177,14 +176,12 @@ export const useChatStore = defineStore("chat", {
           this.messagesByConversation[conversationId] = msgs;
         }
 
-        pager.hasMore = meta.current_page < meta.last_page;
-      } catch (e) {
-        if (append) pager.page -= 1;
+        pager.beforeId = meta.oldest_id ?? pager.beforeId;
+        pager.hasMore = meta.has_more;
       } finally {
         pager.loading = false;
       }
     },
-
     pushMessage(message: Message) {
       const convId = message.conversation_id;
 
@@ -208,7 +205,6 @@ export const useChatStore = defineStore("chat", {
       const channel = window.Echo.private(`conversation.${conversationId}`)
         .listen(".MessageSent", (e: { message: Message }) => {
           const msg = e.message;
-          console.log('api');
 
           if (msg.sender.id !== userStore.user?.id) {
             this.pushMessage(msg);
@@ -269,7 +265,12 @@ export const useChatStore = defineStore("chat", {
             emoji: string | null;
           }) => {
             if (e.user_id === userStore.user?.id) return;
-            this.applyReactionUpdate(e.conversation_id, e.message_id, e.user_id, e.emoji);
+            this.applyReactionUpdate(
+              e.conversation_id,
+              e.message_id,
+              e.user_id,
+              e.emoji
+            );
           }
         );
 

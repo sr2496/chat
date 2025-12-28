@@ -277,12 +277,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import UserAvatar from "./UserAvatar.vue";
 
 const props = defineProps<{
   isGroup: boolean;
   isSent: boolean;
+  isLast?: boolean;
   message?: any;
   senderAvatar?: string;
   setMessageRef: Function;
@@ -292,7 +293,7 @@ const props = defineProps<{
 }>();
 
 
-const emit = defineEmits(["cancel-upload", "open-emoji", "open-actions", "scroll-to-message"]);
+const emit = defineEmits(["cancel-upload", "open-emoji", "open-actions", "scroll-to-message", "mounted"]);
 
 // Custom Audio Player Logic
 const audioRef = ref<HTMLAudioElement | null>(null);
@@ -392,6 +393,14 @@ const tailClasses = computed(() => ({
 const readClass = computed(() =>
   (props.message?.read ? "✓✓" : "✓") === "✓✓" ? "text-white" : "text-white/60"
 );
+
+onMounted(() => {
+  console.log(props.isLast);
+  
+  if (props.isLast) {
+    emit("mounted");
+  }
+});
 
 const nameTextColor = computed(() => {
   // Generate consistent color per user based on ID or name
