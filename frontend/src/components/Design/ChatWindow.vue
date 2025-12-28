@@ -535,6 +535,8 @@ export default defineComponent({
       );
 
       if (!firstUnread) {
+        console.log('this');
+        
         scrollToBottom();
         return;
       }
@@ -558,6 +560,8 @@ export default defineComponent({
         el.scrollTop = el.scrollHeight - el.clientHeight;
       };
 
+      console.log(el.scrollTop);
+      
       // Run multiple times to guarantee layout stability
       scroll();
       requestAnimationFrame(scroll);
@@ -591,32 +595,27 @@ export default defineComponent({
 
     };
 
-    const handleScroll = () => {
+   const handleScroll = () => {
       const el = scrollContainer.value;
       if (!el || loadingMore.value || !chatStore.activeConversationId) return;
 
       // Only load more if near the top
-      if (
-        el.scrollTop < 200 &&
-        chatStore.pagination[chatStore.activeConversationId]?.hasMore
-      ) {
+      if (el.scrollTop < 200 && chatStore.pagination[chatStore.activeConversationId]?.hasMore) {
         // Capture current scroll position and height BEFORE loading more
         const previousHeight = el.scrollHeight;
         const previousScrollTop = el.scrollTop;
 
-        chatStore
-          .loadMessages(chatStore.activeConversationId, true)
-          .finally(() => {
-            nextTick(() => {
-              if (!scrollContainer.value) return;
+        chatStore.loadMessages(chatStore.activeConversationId, true).finally(() => {
+          nextTick(() => {
+            if (!scrollContainer.value) return;
 
-              const newHeight = scrollContainer.value.scrollHeight;
+            const newHeight = scrollContainer.value.scrollHeight;
 
-              // Adjust scroll to compensate for newly added content at the top
-              scrollContainer.value.scrollTop =
-                previousScrollTop + (newHeight - previousHeight);
-            });
+            // Adjust scroll to compensate for newly added content at the top
+            scrollContainer.value.scrollTop = previousScrollTop + (newHeight - previousHeight);
+
           });
+        });
       }
     };
 
@@ -775,8 +774,6 @@ export default defineComponent({
             message_ids: unreadIds,
           });
         }
-        await nextTick();
-        scrollToBottom();
       },
       { deep: true }
     );

@@ -2,7 +2,7 @@
   <transition name="slide-fade">
     <div v-if="isOpen" class="fixed inset-0 z-50 overflow-hidden" @click="close">
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"></div>
+      <div class="absolute inset-0 bg-black/40 transition-opacity"></div>
 
       <!-- Offcanvas Panel -->
       <div @click.stop
