@@ -6,7 +6,7 @@
   >
     <!-- Modal Card -->
     <div
-      class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-gray-200 dark:border-gray-800 overflow-hidden"
+      class="bg-chat-surface rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-chat-border overflow-hidden"
       style="height: 80vh; max-height: 640px;"
       @click.stop
     >
@@ -31,7 +31,7 @@
           v-model="groupName"
           type="text"
           placeholder="Group name (required)"
-          class="w-full px-5 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-green-500/30 transition-shadow text-base shadow-inner"
+          class="w-full px-5 py-4 rounded-2xl bg-chat-bg text-chat-text placeholder-chat-text-muted focus:outline-none focus:ring-4 focus:ring-green-500/30 transition-shadow text-base shadow-inner"
           autofocus
         />
       </div>
@@ -39,14 +39,19 @@
       <!-- Search -->
       <div class="px-6 pb-4 flex-shrink-0">
         <div class="relative">
-          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-chat-text-muted"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             v-model="groupUserSearch"
             type="text"
             placeholder="Search people..."
-            class="w-full pl-12 pr-5 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-green-500/30 transition-shadow text-base shadow-inner"
+            class="w-full pl-12 pr-5 py-4 rounded-2xl bg-chat-bg text-chat-text placeholder-chat-text-muted focus:outline-none focus:ring-4 focus:ring-green-500/30 transition-shadow text-base shadow-inner"
           />
         </div>
       </div>
@@ -55,10 +60,10 @@
       <div v-if="selectedGroupUsers.length" class="px-6 pb-3 flex-shrink-0">
         <button
           @click="showSelectedExpanded = !showSelectedExpanded"
-          class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700/70 transition shadow-sm"
+          class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-chat-bg hover:bg-chat-bg/70 transition shadow-sm"
         >
           <div class="flex items-center gap-3 overflow-hidden">
-            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <span class="text-sm font-semibold text-chat-text-muted">
               Selected ({{ selectedGroupUsers.length }})
             </span>
             <div class="flex gap-2 overflow-hidden">
@@ -69,13 +74,13 @@
               >
                 {{ user.name.split(' ')[0] }}
               </span>
-              <span v-if="selectedGroupUsers.length > 5" class="text-xs text-gray-500 dark:text-gray-400">
+              <span v-if="selectedGroupUsers.length > 5" class="text-xs text-chat-text-muted">
                 +{{ selectedGroupUsers.length - 5 }} more
               </span>
             </div>
           </div>
           <svg
-            class="w-5 h-5 text-gray-500 transition-transform duration-200"
+            class="w-5 h-5 text-chat-text-muted transition-transform duration-200"
             :class="{ 'rotate-180': showSelectedExpanded }"
             fill="none"
             stroke="currentColor"
@@ -96,7 +101,7 @@
         >
           <div
             v-if="showSelectedExpanded"
-            class="mt-3 max-h-48 overflow-y-auto custom-scrollbar flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl"
+            class="mt-3 max-h-48 overflow-y-auto custom-scrollbar flex flex-wrap gap-2 p-3 bg-chat-bg/50 rounded-xl"
           >
             <span
               v-for="user in selectedGroupUsers"
@@ -123,10 +128,10 @@
         <template v-if="userLoading">
           <div v-for="n in 8" :key="n" class="flex items-center justify-between py-4 animate-pulse">
             <div class="flex items-center gap-4 flex-1">
-              <div class="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700" />
-              <div class="h-5 bg-gray-200 dark:bg-gray-700 rounded w-48" />
+              <div class="w-12 h-12 rounded-full bg-chat-bg/50" />
+              <div class="h-5 bg-chat-bg/50 rounded w-48" />
             </div>
-            <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700" />
+            <div class="w-7 h-7 rounded-full bg-chat-bg/50" />
           </div>
         </template>
 
@@ -136,7 +141,7 @@
             v-for="user in filteredGroupUsers"
             :key="user.id"
             @click="toggleGroupUser(user)"
-            class="flex items-center justify-between py-4 px-4 rounded-2xl cursor-pointer transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 group"
+            class="flex items-center justify-between py-4 px-4 rounded-2xl cursor-pointer transition-all duration-200 hover:bg-chat-bg/50 group"
           >
             <div class="flex items-center gap-4 flex-1">
               <UserAvatar
@@ -147,8 +152,8 @@
                 :show-online="true"
               />
               <div>
-                <p class="font-semibold text-gray-900 dark:text-gray-100">{{ user.name }}</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
+                <p class="font-semibold text-chat-text">{{ user.name }}</p>
+                <p class="text-sm text-chat-text-muted">
                   {{ userStore.isUserOnline(user.id) ? 'Online' : 'Offline' }}
                 </p>
               </div>
@@ -158,7 +163,7 @@
               class="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all"
               :class="selectedGroupUsers.some(u => u.id === user.id)
                 ? 'bg-green-500 border-green-500'
-                : 'border-gray-300 dark:border-gray-600 group-hover:border-green-500'"
+                : 'border-chat-border group-hover:border-green-500'"
             >
               <svg v-if="selectedGroupUsers.some(u => u.id === user.id)" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
@@ -166,7 +171,7 @@
             </div>
           </div>
 
-          <div v-if="filteredGroupUsers.length === 0" class="text-center py-16 text-gray-500 dark:text-gray-400">
+          <div v-if="filteredGroupUsers.length === 0" class="text-center py-16 text-chat-text-muted">
             <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
@@ -176,10 +181,10 @@
       </div>
 
       <!-- Actions -->
-      <div class="px-6 py-2 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-3 flex-shrink-0 bg-gray-50 dark:bg-gray-800/50">
+      <div class="px-6 py-2 border-t border-chat-border flex justify-end gap-3 flex-shrink-0 bg-chat-bg/50">
         <button
           @click="handleCloseGroupModal"
-          class="px-6 py-3 rounded-2xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium transition"
+          class="px-6 py-3 rounded-2xl bg-chat-bg hover:bg-chat-bg/70 text-chat-text font-medium transition"
         >
           Cancel
         </button>

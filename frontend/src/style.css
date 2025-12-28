@@ -1,5 +1,45 @@
 @import "tailwindcss";
 
+@theme {
+  --color-chat-bg: var(--chat-bg);
+  --color-chat-surface: var(--chat-surface);
+  --color-chat-text: var(--chat-text);
+  --color-chat-text-muted: var(--chat-text-muted);
+  --color-chat-border: var(--chat-border);
+  --color-chat-bubble-sent: var(--chat-bubble-sent);
+  --color-chat-bubble-received: var(--chat-bubble-received);
+}
+
+:root {
+  --chat-bg: #f3f4f6;
+  --chat-surface: #ffffff;
+  --chat-text: #111827;
+  --chat-text-muted: #6b7280;
+  --chat-border: #e5e7eb;
+  --chat-bubble-sent: #3b82f6;
+  --chat-bubble-received: #ffffff;
+  
+  /* Chat window specific Light background */
+  --chat-window-bg: #efeae2;
+  --chat-icon: #4b5563;        /* gray-600 */
+  --chat-icon-hover: #2563eb;  /* blue-600 */
+}
+
+.dark {
+  --chat-bg: #030712;
+  --chat-surface: #111827;
+  --chat-text: #f9fafb;
+  --chat-text-muted: #9ca3af;
+  --chat-border: #1f2937;
+  --chat-bubble-sent: #2563eb;
+  --chat-bubble-received: #1f2937;
+  
+  /* Chat window specific Dark background */
+  --chat-window-bg: #0b141a;
+  --chat-icon: #d1d5db;        /* gray-300 */
+  --chat-icon-hover: #60a5fa;  /* blue-400 */
+}
+
 .fade-scale-enter-active,
 .fade-scale-leave-active {
   transition: all 0.25s ease;

@@ -1,13 +1,12 @@
 <template>
   <!-- Backdrop with subtle blur + click to close -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4"
-    :class="{'bg-black/40 backdrop-blur-sm': true}"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
     @click="$emit('close')"
   >
     <!-- Modal Card – Stop click propagation -->
     <div
-      class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-gray-200 dark:border-gray-800 overflow-hidden"
+      class="bg-chat-surface rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-chat-border overflow-hidden"
       style="height: 80vh; max-height: 640px;"
       @click.stop
     >
@@ -29,14 +28,19 @@
       <!-- Search -->
       <div class="px-6 pt-6 pb-4 flex-shrink-0">
         <div class="relative">
-          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-chat-text-muted"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             v-model="userSearchQuery"
             type="text"
             placeholder="Search people..."
-            class="w-full pl-12 pr-5 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-shadow text-base shadow-inner"
+            class="w-full pl-12 pr-5 py-4 rounded-2xl bg-chat-bg text-chat-text placeholder-chat-text-muted focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-shadow text-base shadow-inner"
             autofocus
           />
         </div>
@@ -47,10 +51,10 @@
         <!-- Loading -->
         <template v-if="userLoading">
           <div v-for="n in 6" :key="n" class="flex items-center gap-4 py-4 animate-pulse">
-            <div class="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700" />
+            <div class="w-14 h-14 rounded-full bg-chat-bg/50" />
             <div class="flex-1 space-y-3">
-              <div class="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+              <div class="h-5 bg-chat-bg/50 rounded w-3/4" />
+              <div class="h-4 bg-chat-bg/50 rounded w-1/2" />
             </div>
           </div>
         </template>
@@ -61,7 +65,7 @@
             v-for="user in filteredUserList"
             :key="user.id"
             @click="startPrivateChat(user)"
-            class="flex items-center gap-4 py-4 px-4 rounded-2xl cursor-pointer transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-md group"
+            class="flex items-center gap-4 py-4 px-4 rounded-2xl cursor-pointer transition-all duration-200 hover:bg-chat-bg/50 hover:shadow-md group"
           >
             <UserAvatar
               :avatar="user.avatar"
@@ -72,21 +76,26 @@
             />
 
             <div class="flex-1 min-w-0">
-              <p class="font-semibold text-gray-900 dark:text-gray-100 truncate">
+              <p class="font-semibold text-chat-text truncate">
                 {{ user.name }}
               </p>
-              <p class="text-sm text-gray-500 dark:text-gray-400">
+              <p class="text-sm text-chat-text-muted">
                 {{ userStore.isUserOnline(user.id) ? 'Online' : 'Offline' }}
               </p>
             </div>
 
-            <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-5 h-5 text-chat-text-muted group-hover:text-blue-500 transition opacity-0 group-hover:opacity-100"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </div>
 
           <!-- Empty State -->
-          <div v-if="filteredUserList.length === 0" class="text-center py-16 text-gray-500 dark:text-gray-400">
+          <div v-if="filteredUserList.length === 0" class="text-center py-16 text-chat-text-muted">
             <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>

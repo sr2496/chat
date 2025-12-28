@@ -1,14 +1,14 @@
-<!-- MediaComposer.vue – Same Heights, Modern Premium Design -->
+<!-- MediaComposer.vue – Updated with Custom Chat Theme -->
 <template>
-  <div class="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+  <div class="flex flex-col h-full bg-chat-surface text-chat-text">
 
-    <!-- Preview Area – SAME HEIGHT AS BEFORE (flex-1) -->
-    <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-950 relative">
+    <!-- Preview Area – flex-1 -->
+    <div class="flex-1 flex items-center justify-center bg-chat-bg/30 relative">
 
       <!-- Close Button -->
       <button @click="$emit('close')"
-        class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-        <svg class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        class="absolute top-4 right-4 w-10 h-10 rounded-full bg-chat-surface/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-chat-surface/70 transition">
+        <svg class="w-5 h-5 text-chat-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -25,9 +25,9 @@
         </div>
       </label>
 
-      <!-- FIXED PREVIEW BOX – SAME SIZE (420x420) -->
+      <!-- Fixed Preview Box (420x420) -->
       <div
-        class="w-[420px] h-[420px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+        class="w-[420px] h-[420px] bg-chat-surface rounded-3xl shadow-2xl overflow-hidden border border-chat-border flex items-center justify-center">
         <!-- Image -->
         <img v-if="activeFile.type === 'image' && activeFile.preview" :src="activeFile.preview"
           class="max-w-full max-h-full object-contain" alt="Preview" />
@@ -39,34 +39,34 @@
         <!-- File Placeholder -->
         <div v-else class="text-center px-8">
           <div
-            class="w-20 h-20 mx-auto mb-4 bg-gray-200 dark:bg-gray-700 rounded-2xl flex items-center justify-center shadow-inner">
-            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="w-20 h-20 mx-auto mb-4 bg-chat-bg rounded-2xl flex items-center justify-center shadow-inner">
+            <svg class="w-10 h-10 text-chat-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
           </div>
           <p class="font-semibold text-lg">{{ truncateName(activeFile.name, 30) }}</p>
-          <p class="text-sm text-gray-500 mt-1">{{ formatFileSize(activeFile.size) }}</p>
+          <p class="text-sm text-chat-text-muted mt-1">{{ formatFileSize(activeFile.size) }}</p>
         </div>
       </div>
     </div>
 
-    <!-- Caption Input – SAME HEIGHT (h-16) -->
-    <div class="h-16 px-6 flex items-center border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <!-- Caption Input – h-16 -->
+    <div class="h-16 px-6 flex items-center border-t border-chat-border bg-chat-surface">
       <input v-model="currentCaption" placeholder="Add a caption..."
-        class="flex-1 text-base bg-transparent outline-none placeholder-gray-500 dark:placeholder-gray-400" />
-      <span class="text-sm text-gray-400 ml-3">
+        class="flex-1 text-base bg-transparent outline-none placeholder-chat-text-muted" />
+      <span class="text-sm text-chat-text-muted ml-3">
         {{ currentCaption.length }}/2048
       </span>
     </div>
 
-    <!-- Bottom Thumbnails Row – SAME HEIGHT (h-[112px]) -->
+    <!-- Bottom Thumbnails Row – h-[112px] -->
     <div
-      class="h-[112px] px-6 bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
+      class="h-[112px] px-6 bg-chat-bg/30 border-t border-chat-border flex items-center justify-between">
 
       <!-- Thumbnails -->
       <div class="flex-1 flex items-center max-w-full">
-        <div class="flex items-center gap-3 overflow-x-auto scrollbar-thin py-2 px-1 flex-1">
+        <div class="flex items-center gap-3 overflow-x-auto custom-scrollbar py-2 px-1 flex-1">
           <div v-for="(file, index) in files" :key="index" @click="activeIndex = index"
             class="relative w-20 h-20 rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-all duration-200 shadow-md group"
             :class="activeIndex === index ? 'ring-4 ring-blue-500 shadow-xl scale-105 z-10' : 'opacity-80 hover:opacity-100 hover:shadow-lg'">
@@ -76,11 +76,11 @@
             <video v-else-if="file.type === 'video' && file.preview" :src="file.preview"
               class="w-full h-full object-cover" />
             <div v-else
-              class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300">
+              class="w-full h-full bg-chat-bg flex items-center justify-center text-sm font-bold text-chat-text-muted">
               {{ file.name.split('.').pop()?.toUpperCase() || 'FILE' }}
             </div>
 
-            <!-- Remove Button – Slightly Larger & Better Positioned -->
+            <!-- Remove Button -->
             <button @click.stop="removeFile(index)"
               class="absolute top-2 right-2 w-7 h-7 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,9 +100,9 @@
               d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
 
-          <!-- Count Badge – Only when multiple files -->
+          <!-- Count Badge -->
           <span v-if="files.length > 0"
-            class="absolute -top-2 -right-2 w-8 h-8 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 text-sm font-bold rounded-full flex items-center justify-center shadow-lg border-2 border-gray-50 dark:border-gray-900">
+            class="absolute -top-2 -right-2 w-8 h-8 bg-chat-surface text-blue-600 text-sm font-bold rounded-full flex items-center justify-center shadow-lg border-2 border-chat-bg">
             {{ files.length }}
           </span>
         </button>
@@ -191,18 +191,3 @@ const truncateName = (name: string, length: number): string => {
   return parts.join('.').slice(0, length - ext.length - 3) + '...' + ext;
 };
 </script>
-
-<style scoped>
-.scrollbar-thin::-webkit-scrollbar {
-  height: 6px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-</style>

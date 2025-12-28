@@ -1,6 +1,6 @@
 <!-- ChatWindow.vue -->
 <template>
-  <div class="flex flex-col h-screen bg-[#efeae2] dark:bg-gray-800">
+  <div class="flex flex-col h-screen bg-[var(--chat-window-bg)]">
     <!-- Header -->
     <div class="shrink-0">
       <ChatHeader />
@@ -22,7 +22,7 @@
           leave-active-class="transition-all duration-150 ease-in" leave-from-class="opacity-100 translate-y-0"
           leave-to-class="opacity-0 -translate-y-2">
           <span v-if="showStickyDate && activeStickyDate"
-            class="px-5 py-1.5 text-xs font-semibold tracking-wider uppercase text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-full shadow-lg">
+            class="px-5 py-1.5 text-xs font-semibold tracking-wider uppercase text-chat-text bg-chat-surface/90 backdrop-blur-sm border border-chat-border rounded-full shadow-lg">
             {{ activeStickyDate }}
           </span>
         </transition>
@@ -64,11 +64,11 @@
             <DateSeparator v-if="shouldShowDate(index)" :day="getMessageDay(msg.created_at)" />
             <!-- Unread Divider -->
             <div v-if="msg.id === firstUnreadId" class="relative my-4 flex items-center">
-              <div class="h-px flex-grow bg-gray-200 dark:bg-gray-700" />
-              <span class="mx-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <div class="h-px flex-grow bg-chat-border" />
+              <span class="mx-4 text-xs font-semibold uppercase tracking-wider text-chat-text-muted">
                 New messages
               </span>
-              <div class="h-px flex-grow bg-gray-200 dark:bg-gray-700" />
+              <div class="h-px flex-grow bg-chat-border" />
             </div>
             <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg" :setMessageRef="setMessageRef"
               :getMessageDay="getMessageDay" @open-emoji="openReactionPicker" @open-actions="openContextMenu"
@@ -776,7 +776,7 @@ export default defineComponent({
           });
         }
         await nextTick();
-        scrollToFirstUnread();
+        scrollToBottom();
       },
       { deep: true }
     );

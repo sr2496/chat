@@ -379,14 +379,14 @@ const fileExt = computed(() => {
 });
 
 const bubbleClasses = computed(() => ({
-  "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none":
+  "bg-chat-bubble-received text-chat-text rounded-bl-none":
     !props.isSent,
-  "bg-blue-500 text-white rounded-br-none": props.isSent,
+  "bg-chat-bubble-sent text-white rounded-br-none": props.isSent,
 }));
 
 const tailClasses = computed(() => ({
-  "left-0 -translate-x-2 text-white dark:text-gray-700": !props.isSent,
-  "right-0 translate-x-2 text-blue-500": props.isSent,
+  "left-0 -translate-x-2 text-chat-bubble-received": !props.isSent,
+  "right-0 translate-x-2 text-chat-bubble-sent": props.isSent,
 }));
 
 const readClass = computed(() =>

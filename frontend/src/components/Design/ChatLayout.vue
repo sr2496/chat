@@ -1,8 +1,7 @@
 <template>
   <div class="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden">
     <!-- Desktop Sidebar: Always visible -->
-    <div
-      class="hidden sm:flex w-full sm:w-96 lg:w-[420px] border-r border-gray-200 dark:border-gray-800 flex-col bg-white dark:bg-gray-900">
+    <div class="hidden sm:flex w-full sm:w-96 lg:w-[420px] border-r border-chat-border flex-col bg-chat-surface">
       <ChatList @new-chat="showNewChatModal = true" @create-group="showGroupModal = true" />
     </div>
 
@@ -11,8 +10,7 @@
       <!-- Desktop: No transition, instant view switch -->
       <div v-if="!isMobile" class="flex flex-col h-full">
         <!-- Empty State -->
-        <div v-if="!chatStore.activeConversationId"
-          class="flex-1 flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div v-if="!chatStore.activeConversationId" class="flex-1 flex items-center justify-center bg-chat-bg">
           <div class="text-center max-w-md px-8">
             <div class="w-64 h-64 mx-auto mb-10 opacity-30">
               <svg class="w-full h-full text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor"
@@ -28,7 +26,7 @@
         </div>
 
         <!-- Chat Window on Desktop -->
-        <div v-else class="flex flex-col h-full bg-[#efeae2] dark:bg-gray-800">
+        <div v-else class="flex flex-col h-full bg-[var(--chat-window-bg)]">
           <ChatWindow :conversationId="chatStore.activeConversationId" />
         </div>
       </div>
@@ -39,11 +37,9 @@
         leave-active-class="transition ease-in duration-200" leave-from-class="translate-x-0"
         leave-to-class="translate-x-full">
         <!-- Chat View on Mobile -->
-        <div v-if="chatStore.activeConversationId" key="chat"
-          class="flex flex-col h-full bg-[#efeae2] dark:bg-gray-800">
+        <div v-if="chatStore.activeConversationId" key="chat" class="flex flex-col h-full bg-[var(--chat-window-bg)]">
           <!-- Mobile Header with Back Button -->
-          <div
-            class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-4">
+          <div class="bg-chat-surface border-b border-chat-border px-4 py-3 flex items-center gap-4">
             <button @click="chatStore.activeConversationId = null"
               class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition">
               <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor"
@@ -157,4 +153,3 @@ export default defineComponent({
   },
 });
 </script>
-
