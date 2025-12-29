@@ -359,10 +359,11 @@ export default defineComponent({
       dragOver.value = false;
       if (e.dataTransfer?.files?.length) {
         const files = Array.from(e.dataTransfer.files);
+        const queued = buildQueuedFiles(files);
         if (isMediaComposerOpen.value) {
-          handleFileAdd(files);
+          handleFileAdd(queued);
         } else {
-          handleQueueFiles(files);
+          handleQueueFiles({ files: queued });
         }
       }
     };
@@ -394,8 +395,6 @@ export default defineComponent({
 
     const handleFileAdd = (files: QueuedFile[]) => {
       queuedFiles.value.push(...files);
-      console.log(queuedFiles.value);
-
     };
 
     const buildQueuedFiles = (files: File[]) => {
@@ -543,7 +542,7 @@ export default defineComponent({
       const el = messageRefs.get(firstUnread.id);
       console.log(el, scrollContainer.value);
       if (el && scrollContainer.value) {
-        
+
         el.scrollIntoView({
           behavior: "smooth",
           block: "center",
@@ -743,7 +742,7 @@ export default defineComponent({
 
         await chatStore.loadMessages(id, false);
         chatStore.computeFirstUnread(id);
-        
+
         messagesLoading.value = false;
 
         await nextTick();
