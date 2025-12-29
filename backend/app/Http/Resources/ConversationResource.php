@@ -48,6 +48,10 @@ class ConversationResource extends JsonResource
                 ? $this->name
                 : $this->users->where('id', '!=', $authUserId)->first()?->name,
 
+            'display_avatar' => $this->type === 'group'
+                ? ($this->avatar ? asset('storage/' . $this->avatar) : null)
+                : $this->users->where('id', '!=', $authUserId)->first()?->avatar_url,
+
             'initials' => $initials,
 
             'users' => UserResource::collection($this->users),

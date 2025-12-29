@@ -38,8 +38,7 @@
 
         <!-- File Placeholder -->
         <div v-else class="text-center px-8">
-          <div
-            class="w-20 h-20 mx-auto mb-4 bg-chat-bg rounded-2xl flex items-center justify-center shadow-inner">
+          <div class="w-20 h-20 mx-auto mb-4 bg-chat-bg rounded-2xl flex items-center justify-center shadow-inner">
             <svg class="w-10 h-10 text-chat-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -61,8 +60,7 @@
     </div>
 
     <!-- Bottom Thumbnails Row – h-[112px] -->
-    <div
-      class="h-[112px] px-6 bg-chat-bg/30 border-t border-chat-border flex items-center justify-between">
+    <div class="h-[112px] px-6 bg-chat-bg/30 border-t border-chat-border flex items-center justify-between">
 
       <!-- Thumbnails -->
       <div class="flex-1 flex items-center max-w-full">
@@ -118,7 +116,7 @@ const props = defineProps<{
   files: Array<{
     file: File;
     preview?: string;
-    type: 'image' | 'video' | 'file';
+    type: 'image' | 'video' | 'file' | 'audio';
     name: string;
     size: number;
     caption?: string;

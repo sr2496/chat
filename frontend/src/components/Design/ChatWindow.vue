@@ -29,9 +29,9 @@
       </div>
 
       <!-- Skeleton Loader -->
-      <transition name="fade" mode="out-in">
+      <transition name="fade" mode="out-in" @after-enter="onMessagesTransitionEnd">
         <div v-if="messagesLoading" class="space-y-8 animate-pulse">
-          <div v-for="n in 10" :key="n" class="flex" :class="n % 3 === 0 ? 'justify-end' : 'gap-3 items-end'">
+          <div v-for="n in 3" :key="n" class="flex" :class="n % 3 === 0 ? 'justify-end' : 'gap-3 items-end'">
             <!-- Avatar Skeleton (received) -->
             <div v-if="n % 3 !== 0" class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex-shrink-0" />
 
@@ -120,7 +120,7 @@
           <div data-reaction-menu="true"
             class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-2.5 border border-gray-200 dark:border-gray-700 flex items-center gap-2 pointer-events-auto">
             <button v-for="emoji in commonEmojis" :key="emoji" @click="addReaction(reactionPickerMessageId, emoji)"
-              class="text-2xl hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 transition-all duration-150">
+              class="text-2xl hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 transition-all duration-150 text-gray-800 dark:text-gray-100">
               {{ emoji }}
             </button>
           </div>
@@ -142,6 +142,7 @@
           overflow-hidden
           backdrop-blur-sm
           ring-1 ring-black/5 dark:ring-white/10
+          text-gray-800 dark:text-gray-100
         ">
             <!-- Reply -->
             <button @click="replyToMessage(contextMenu.message)" class="
@@ -234,7 +235,7 @@ import MediaComposer from "./MediaComposer.vue";
 interface QueuedFile {
   file: File;
   preview?: string;
-  type: string;
+  type: "image" | "video" | "file" | "audio";
   name: string;
   size: number;
   caption?: string;
@@ -264,6 +265,17 @@ export default defineComponent({
       x: number;
       y: number;
     } | null>(null);
+
+    const deleteMessage = async (messageId: number) => {
+      if (!confirm("Are you sure you want to delete this message?")) return;
+      try {
+        await api.delete(`/messages/${messageId}`);
+        chatStore.removeMessage(messageId);
+        contextMenu.value = null;
+      } catch (err) {
+        console.error("Delete failed", err);
+      }
+    };
 
     const replyingTo = ref<{ id?: number; senderName?: string; body: string } | null>(null);
 
@@ -397,7 +409,7 @@ export default defineComponent({
       queuedFiles.value.push(...files);
     };
 
-    const buildQueuedFiles = (files: File[]) => {
+    const buildQueuedFiles = (files: File[]): QueuedFile[] => {
       return files.map(file => {
         const type = file.type.startsWith("image/")
           ? "image"
@@ -411,7 +423,7 @@ export default defineComponent({
             type === "image" || type === "video"
               ? URL.createObjectURL(file)
               : undefined,
-          type,
+          type: type as "image" | "video" | "file",
           name: file.name,
           size: file.size,
           caption: "",
@@ -516,8 +528,13 @@ export default defineComponent({
     const shouldShowDate = (index: number) => {
       if (index === 0) return true;
 
-      const current = getMessageDay(messages.value[index].created_at);
-      const previous = getMessageDay(messages.value[index - 1].created_at);
+      const currentMsg = messages.value[index];
+      const prevMsg = messages.value[index - 1];
+
+      if (!currentMsg || !prevMsg) return false;
+
+      const current = getMessageDay(currentMsg.created_at);
+      const previous = getMessageDay(prevMsg.created_at);
 
       return current !== previous;
     };
@@ -529,18 +546,13 @@ export default defineComponent({
     const scrollToFirstUnread = async () => {
       await nextTick();
 
-      const firstUnread = messages.value.find(
-        (m: any) => !m.read_by_me && m.sender.id !== currentUserId.value
-      );
-
-
-      if (!firstUnread) {
+      if (!firstUnreadId.value) {
         scrollToBottom();
         return;
       }
 
-      const el = messageRefs.get(firstUnread.id);
-      console.log(el, scrollContainer.value);
+      const el = messageRefs.get(firstUnreadId.value);
+
       if (el && scrollContainer.value) {
 
         el.scrollIntoView({
@@ -566,6 +578,10 @@ export default defineComponent({
       setTimeout(() => {
         scroll();
       }, 80);
+    };
+
+    const onMessagesTransitionEnd = () => {
+      scrollToFirstUnread();
     };
 
     const scrollToMessage = async (messageId: number) => {
@@ -648,15 +664,17 @@ export default defineComponent({
       onScroll();
     }, 50);
 
-    const activeStickyDate = ref(null);
+    const activeStickyDate = ref<string | null>(null);
 
     const onScroll = () => {
       const rows = scrollContainer.value?.querySelectorAll(".message-row");
+      if (!rows) return;
+
 
       for (const row of rows) {
         const rect = row.getBoundingClientRect();
         if (rect.top >= 0) {
-          const day = row.dataset.day;
+          const day = (row as HTMLElement).dataset.day;
           if (day && day !== activeStickyDate.value) {
             activeStickyDate.value = day;
           }
@@ -744,9 +762,7 @@ export default defineComponent({
         chatStore.computeFirstUnread(id);
 
         messagesLoading.value = false;
-
-        await nextTick();
-        scrollToFirstUnread();
+        // Scroll handled by @after-enter hook on transition
       },
       { immediate: true }
     );
@@ -907,7 +923,10 @@ export default defineComponent({
       openContextMenu,
       replyToMessage,
       scrollToMessage,
+      type: "audio" as const,
       copyMessageText,
+      deleteMessage,
+      onMessagesTransitionEnd,
     };
   },
 });

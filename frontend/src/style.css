@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-chat-bg: var(--chat-bg);
   --color-chat-surface: var(--chat-surface);

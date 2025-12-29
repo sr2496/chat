@@ -25,7 +25,10 @@ class ChatController extends Controller
 
         $conversations = auth()->user()
             ->conversations()
-            ->whereHas('messages')
+            ->where(function ($q) {
+                $q->where('type', 'group')
+                    ->orWhereHas('messages');
+            })
             ->with(['users', 'lastMessage'])
             ->withCount([
                 'messages as unread_count' => function ($q) use ($userId) {
@@ -52,13 +55,21 @@ class ChatController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'user_ids' => 'required|array|min:1',
+            'avatar' => 'nullable|image|max:5120', // 5MB max
         ]);
 
-        $conversation = Conversation::create([
+        $data = [
             'name' => $request->name,
             'type' => 'group',
             'created_by' => auth()->id(),
-        ]);
+        ];
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('chat/avatars', 'public');
+            $data['avatar'] = $path;
+        }
+
+        $conversation = Conversation::create($data);
 
         $users = array_merge([$request->user()->id], $request->user_ids);
         $conversation->users()->attach($users, ['is_admin' => $request->user()->id]);

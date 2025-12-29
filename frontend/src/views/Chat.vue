@@ -31,13 +31,13 @@
     </div>
 
     <!-- New Chat Modal -->
-    <NewChatModal v-if="showNewChatModal" :conversationsLoading="conversationsLoading" :users="users"
+    <NewChatModal v-if="showNewChatModal" :userLoading="conversationsLoading" :users="users"
       @close="showNewChatModal = false" />
 
 
 
     <!-- Create Group Modal -->
-    <CreateGroupModal v-if="showGroupModal" :conversationsLoading="conversationsLoading" :users="users"
+    <CreateGroupModal v-if="showGroupModal" :userLoading="conversationsLoading" :users="users"
       @close="showGroupModal = false" />
 
 
@@ -56,10 +56,10 @@ import {
 import { api } from "../axios";
 import { useUserStore } from "../stores/user";
 import { useChatStore } from "../stores/chat";
-import ConversationList from "../components/ConversationList.vue";
-import ChatWindow from "../components/ChatWindow.vue";
-import NewChatModal from "../components/Chat/NewChatModal .vue";
-import CreateGroupModal from "../components/Chat/CreateGroupModal.vue";
+import ConversationList from "../components/Design/ChatList.vue";
+import ChatWindow from "../components/Design/ChatWindow.vue";
+import NewChatModal from "../components/Design/NewChatModal.vue";
+import CreateGroupModal from "../components/Design/CreateGroupModal.vue";
 
 
 export default defineComponent({
@@ -75,7 +75,7 @@ export default defineComponent({
 
     /* ---------------- USERS ---------------- */
     const users = ref<any[]>([]);
-    
+
     const conversationsLoading = ref(true);
 
     /* ---------------- COMPUTED ---------------- */

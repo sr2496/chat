@@ -195,6 +195,15 @@ export const useChatStore = defineStore("chat", {
       this.updateConversationLastMessage(message);
     },
 
+    removeMessage(messageId: number) {
+      const convId = this.activeConversationId;
+      if (!convId || !this.messagesByConversation[convId]) return;
+
+      this.messagesByConversation[convId] = this.messagesByConversation[convId].filter(
+        (m) => m.id !== messageId
+      );
+    },
+
     /* ---------------- REALTIME (ECHO) ---------------- */
 
     startListening(conversationId: number) {
@@ -312,24 +321,38 @@ export const useChatStore = defineStore("chat", {
       return conversation;
     },
 
-    async createGroupConversation(name: string, userIds: number[]) {
-      const res = await api.post("groups", {
-        name,
-        user_ids: userIds,
-      });
+    async createGroupConversation(name: string, userIds: number[], avatar?: File) {
+      if (avatar) {
+        const formData = new FormData();
+        formData.append("name", name);
+        userIds.forEach((id) => formData.append("user_ids[]", id.toString()));
+        formData.append("avatar", avatar);
 
-      const conversation = res.data.data;
+        const res = await api.post("groups", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const conversation = res.data.data;
+        this.addConversationIfMissing(conversation);
+        this.setActiveConversation(conversation.id);
+        return conversation;
+      } else {
+        const res = await api.post("groups", {
+          name,
+          user_ids: userIds,
+        });
 
-      this.addConversationIfMissing(conversation);
-      this.setActiveConversation(conversation.id);
-
-      return conversation;
+        const conversation = res.data.data;
+        this.addConversationIfMissing(conversation);
+        this.setActiveConversation(conversation.id);
+        return conversation;
+      }
     },
 
     updateConversationLastMessage(message: Message) {
       const convId = message.conversation_id;
 
-      const index = this.conversations.findIndex((c) => c.id === convId);
+      // Use string conversion to handle potential string/number mismatches
+      const index = this.conversations.findIndex((c) => String(c.id) === String(convId));
       if (index === -1) return;
 
       const updatedConv = {
@@ -341,9 +364,10 @@ export const useChatStore = defineStore("chat", {
       // Move conversation to top (WhatsApp behavior)
       this.conversations = [
         updatedConv,
-        ...this.conversations.filter((c) => c.id !== convId),
+        ...this.conversations.filter((c) => String(c.id) !== String(convId)),
       ];
     },
+    
     getLastMessagePreview(msg?: Message): string {
       if (!msg) return "No messages yet";
 
