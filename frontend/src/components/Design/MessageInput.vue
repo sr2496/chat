@@ -1,6 +1,6 @@
 <!-- MessageInput.vue - Updated with Custom Chat Theme Variables -->
 <template>
-  <div class="bg-chat-surface px-4 pt-3 pb-4 border-t border-chat-border">
+  <div class="bg-chat-surface px-2 sm:px-4 pt-3 pb-4 border-t border-chat-border">
     <!-- Reply Preview -->
     <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0 -translate-y-2"
       enter-to-class="opacity-100 translate-y-0" leave-active-class="transition ease-in duration-150"
@@ -33,9 +33,9 @@
 
     <!-- Input Bar -->
     <div ref="inputBarRef"
-      class="flex items-end gap-4 bg-chat-bg/80 dark:bg-gray-800/50 rounded-3xl px-4 py-3 shadow-inner ring-1 ring-chat-border focus-within:ring-blue-500 dark:focus-within:ring-blue-400 transition-all backdrop-blur-sm">
+      class="flex items-end gap-2 sm:gap-4 bg-chat-bg/80 dark:bg-gray-800/50 rounded-3xl px-3 sm:px-4 py-3 shadow-inner ring-1 ring-chat-border focus-within:ring-blue-500 dark:focus-within:ring-blue-400 transition-all backdrop-blur-sm">
       <!-- Emoji Button -->
-      <button v-if="!isRecording" @click="toggleEmojiPicker"
+      <button v-if="!isRecording" @click="toggleEmojiPicker" ref="emojiContainerRef"
         class="text-chat-text-muted hover:text-yellow-500 transition text-2xl flex-shrink-0">
         😊
       </button>
@@ -189,9 +189,10 @@
 <script setup lang="ts">
 // Same script as before — no changes needed
 // (All your existing logic remains 100% intact)
-import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue';
-import EmojiPicker, { type EmojiExt } from 'vue3-emoji-picker';
-import 'vue3-emoji-picker/css';
+import { ref, watch, nextTick, computed, onMounted } from 'vue';
+import EmojiPicker from 'vue3-emoji-picker';
+import { useEmojiPicker } from '../../composables/useEmojiPicker';
+
 import { useTheme } from '../../composables/useTheme';
 
 const props = defineProps<{
@@ -208,9 +209,8 @@ const emit = defineEmits(['send-text', 'queue-files', 'cancel-reply']);
 // ... (rest of your script is exactly the same)
 const inputText = ref('');
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
-const fileInput = ref<HTMLInputElement | null>(null);
-const inputBarRef = ref<HTMLElement | null>(null);
-const emojiPickerRef = ref<HTMLElement | null>(null);
+
+
 
 const isRecording = ref(false);
 const isPaused = ref(false);
@@ -237,8 +237,7 @@ let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let timerInterval: number | null = null;
 
-const showEmojiPicker = ref(false);
-const emojiPickerStyle = ref({ bottom: '0', left: '0' });
+
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -307,50 +306,36 @@ const sendMessage = () => {
   nextTick(autoResize);
 };
 
-const toggleEmojiPicker = () => {
-  showEmojiPicker.value = !showEmojiPicker.value;
-  if (showEmojiPicker.value && inputBarRef.value) {
-    const rect = inputBarRef.value.getBoundingClientRect();
-    emojiPickerStyle.value = {
-      bottom: `${window.innerHeight - rect.top + 16}px`,
-      left: `${rect.left}px`,
-    };
+// Composable
+const emoji = useEmojiPicker({
+  onSelectEmoji: (emoji: any) => {
+    inputText.value += emoji.i;
+    nextTick(() => {
+      textareaRef.value?.focus();
+      autoResize();
+    });
   }
-};
-
-const handleClickOutside = (e: MouseEvent) => {
-  if (!showEmojiPicker.value) return;
-  const target = e.target as Node;
-  if (
-    !inputBarRef.value?.contains(target) &&
-    !emojiPickerRef.value?.contains(target)
-  ) {
-    showEmojiPicker.value = false;
-  }
-};
-
-const onSelectEmoji = (emoji: EmojiExt) => {
-  inputText.value += emoji.i;
-  nextTick(() => {
-    textareaRef.value?.focus();
-    autoResize();
-  });
-};
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
-  nextTick(() => {
-    textareaRef.value?.focus();
-    autoResize();
-  });
 });
 
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
+const showEmojiPicker = emoji.showEmojiPicker;
+const emojiContainerRef = emoji.emojiContainerRef;
+const emojiPickerRef = emoji.emojiPickerEl; // Mapping to existing ref name if possible, or update template
+const emojiPickerStyle = emoji.emojiPickerStyle;
+const toggleEmojiPicker = emoji.toggleEmojiPicker;
+const onSelectEmoji = emoji.onSelectEmoji;
+
+// Mark for TS
+void (emojiContainerRef && emojiPickerRef);
+
+onMounted(() => {
+  nextTick(() => {
+    textareaRef.value?.focus();
+    autoResize();
+  });
 });
 
 // Voice recording functions remain unchanged...
-const startRecording = (e: MouseEvent | TouchEvent) => {
+const startRecording = (_e: MouseEvent | TouchEvent) => {
   isCancelling.value = false;
   showCancelHint.value = false;
   recordingTime.value = 0;

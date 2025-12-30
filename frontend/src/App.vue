@@ -34,7 +34,7 @@ export default defineComponent({
       try {
         const res = await api.get('/user') // Sanctum session check
 
-        userStore.setUser(res.data)
+        userStore.setUser(res.data.data)
       } catch {
         userStore.clearUser()
       }

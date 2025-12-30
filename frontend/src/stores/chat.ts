@@ -43,6 +43,7 @@ export const useChatStore = defineStore("chat", {
     searchQuery: "",
     typingUsers: {} as Record<number, number[]>,
     firstUnreadByConversation: {} as Record<number, number | null>,
+    mutedConversations: [] as number[],
   }),
 
   getters: {
@@ -95,7 +96,7 @@ export const useChatStore = defineStore("chat", {
       return "Several people are typing...";
     },
 
-    getOtherUser: (state) => {
+    getOtherUser: (_state) => {
       const userStore = useUserStore();
       return (conversation: any) => {
         if (conversation.type !== "private") return null;
@@ -428,7 +429,7 @@ export const useChatStore = defineStore("chat", {
       const index = messages.findIndex((m) => m.id === messageId);
       if (index === -1) return;
 
-      const msg = messages[index];
+      const msg = messages[index]!;
       const oldReactions = msg.reactions ?? {};
 
       let newReactions: Record<string, number[]> = {};
@@ -447,7 +448,7 @@ export const useChatStore = defineStore("chat", {
       // Replace message immutably
       this.messagesByConversation[conversationId] = [
         ...messages.slice(0, index),
-        { ...msg, reactions: newReactions },
+        { ...msg, reactions: newReactions } as Message,
         ...messages.slice(index + 1),
       ];
     },
@@ -463,7 +464,7 @@ export const useChatStore = defineStore("chat", {
       const index = messages.findIndex((m) => m.id === messageId);
       if (index === -1) return;
 
-      const msg = messages[index];
+      const msg = messages[index]!;
       const oldReactions = msg.reactions ?? {};
 
       let newReactions: Record<string, number[]> = {};
@@ -485,7 +486,7 @@ export const useChatStore = defineStore("chat", {
       // 3️⃣ Replace message immutably
       this.messagesByConversation[convId] = [
         ...messages.slice(0, index),
-        { ...msg, reactions: newReactions },
+        { ...msg, reactions: newReactions } as Message,
         ...messages.slice(index + 1),
       ];
     },
@@ -498,6 +499,70 @@ export const useChatStore = defineStore("chat", {
       } catch {
         // rollback on failure
         this.toggleReaction(messageId, emoji);
+      }
+    },
+
+    /* ---------------- CONVERSATION MANAGEMENT ---------------- */
+
+    toggleMute(conversationId: number) {
+      const index = this.mutedConversations.indexOf(conversationId);
+      if (index > -1) {
+        this.mutedConversations.splice(index, 1);
+      } else {
+        this.mutedConversations.push(conversationId);
+      }
+      // TODO: Persist to backend if needed
+    },
+
+    async deleteConversation(conversationId: number) {
+      try {
+        await api.delete(`/conversations/${conversationId}`);
+        
+        // Remove from local state
+        this.conversations = this.conversations.filter(c => c.id !== conversationId);
+        delete this.messagesByConversation[conversationId];
+        delete this.pagination[conversationId];
+        delete this.firstUnreadByConversation[conversationId];
+        
+        // Stop listening
+        if (this.echoChannels.has(conversationId)) {
+          window.Echo.leave(`conversation.${conversationId}`);
+          this.echoChannels.delete(conversationId);
+        }
+        
+        // Clear active if it was deleted
+        if (this.activeConversationId === conversationId) {
+          this.activeConversationId = null;
+        }
+      } catch (error) {
+        console.error('Failed to delete conversation:', error);
+        throw error;
+      }
+    },
+
+    async leaveGroup(conversationId: number) {
+      try {
+        await api.post(`/conversations/${conversationId}/leave`);
+        
+        // Remove from local state
+        this.conversations = this.conversations.filter(c => c.id !== conversationId);
+        delete this.messagesByConversation[conversationId];
+        delete this.pagination[conversationId];
+        delete this.firstUnreadByConversation[conversationId];
+        
+        // Stop listening
+        if (this.echoChannels.has(conversationId)) {
+          window.Echo.leave(`conversation.${conversationId}`);
+          this.echoChannels.delete(conversationId);
+        }
+        
+        // Clear active if we left this group
+        if (this.activeConversationId === conversationId) {
+          this.activeConversationId = null;
+        }
+      } catch (error) {
+        console.error('Failed to leave group:', error);
+        throw error;
       }
     },
   },

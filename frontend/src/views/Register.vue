@@ -107,7 +107,7 @@
 import { defineComponent, reactive, ref, inject, nextTick } from 'vue';
 import { api, csrf } from '../axios';
 import router from '../router';
-import { useUserStore } from '../stores/user';
+
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 
@@ -124,7 +124,7 @@ export default defineComponent({
     })
 
     const toaster = inject('toaster') as { value: any } | undefined;
-    const userStore = useUserStore();
+
 
     const validate = () => {
       errors.name = '';
@@ -166,7 +166,7 @@ export default defineComponent({
 
         await csrf.get('/sanctum/csrf-cookie');
 
-        const response = await api.post('/register', {
+        await api.post('/register', {
           name: name.value,
           email: email.value,
           password: password.value

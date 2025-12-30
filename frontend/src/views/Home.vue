@@ -312,7 +312,7 @@
 <script lang="ts">
 import { defineComponent, computed, ref } from 'vue'
 import { useUserStore } from '../stores/user'
-import { api } from '../axios'
+
 
 export default defineComponent({
   setup() {
@@ -322,15 +322,7 @@ export default defineComponent({
     const mobileMenuOpen = ref(false)
 
     const logout = async () => {
-      try {
-        await api.post('/logout')
-      } catch (e) {
-        console.error('Logout error:', e)
-      } finally {
-        userStore.leavePresenceChannel();
-        userStore.clearUser()
-        mobileMenuOpen.value = false
-      }
+      await userStore.logout();
     }
 
     return { isAuthenticated, user, logout, mobileMenuOpen }

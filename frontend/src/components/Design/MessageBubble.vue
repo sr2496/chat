@@ -7,7 +7,7 @@
     <UserAvatar v-if="!isSent && isGroup && message.type !== 'audio'" :avatar="message.sender?.avatar" size="sm"
       :is-online="message.sender?.online" :show-online="false" :is-group="false" />
 
-    <div class="max-w-[75%]">
+    <div class="max-w-[85%] sm:max-w-[75%]">
       <div class="relative">
         <div class="relative px-4 py-2 rounded-2xl shadow-sm overflow-hidden" :class="bubbleClasses">
           <!-- Tail -->
@@ -106,7 +106,7 @@
               <div class="flex justify-between text-[10px] font-medium opacity-70">
                 <span>{{ formatAudioTime(currentTime) }}</span>
                 <span>{{ formatAudioTime(duration || message.file_size / 5000)
-                  }}<!-- Fallback if duration not ready --></span>
+                }}<!-- Fallback if duration not ready --></span>
               </div>
             </div>
 
@@ -218,7 +218,7 @@
           <div class="flex justify-end items-center gap-1 mt-2">
             <span class="text-[11px] opacity-70">{{
               formatTime(message.created_at)
-              }}</span>
+            }}</span>
             <span v-if="isSent" class="text-[11px]" :class="readClass">
               {{ message?.read_by_count > 0 ? "✓✓" : "✓" }}
             </span>

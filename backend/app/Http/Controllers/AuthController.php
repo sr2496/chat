@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Resources\UserResource;
 
 class AuthController extends Controller
 {
@@ -54,6 +55,37 @@ class AuthController extends Controller
 
     public function user()
     {
-        return response()->json(auth()->user());
+        return new UserResource(auth()->user());
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = auth()->user();
+
+        $request->validate([
+            'name' => 'sometimes|required|string|max:50|min:2',
+            'avatar' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // 2MB max
+        ]);
+
+        // Update name if provided
+        if ($request->has('name')) {
+            $user->name = $request->name;
+        }
+
+        // Handle avatar upload
+        if ($request->hasFile('avatar')) {
+            // Delete old avatar if exists
+            if ($user->avatar && \Storage::disk('public')->exists($user->avatar)) {
+                \Storage::disk('public')->delete($user->avatar);
+            }
+
+            // Store new avatar
+            $avatarPath = $request->file('avatar')->store('chat/avatars', 'public');
+            $user->avatar = $avatarPath;
+        }
+
+        $user->save();
+
+        return new UserResource($user);
     }
 }

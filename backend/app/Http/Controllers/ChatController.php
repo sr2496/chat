@@ -71,8 +71,13 @@ class ChatController extends Controller
 
         $conversation = Conversation::create($data);
 
-        $users = array_merge([$request->user()->id], $request->user_ids);
-        $conversation->users()->attach($users, ['is_admin' => $request->user()->id]);
+        // Attach creator as admin
+        $conversation->users()->attach($request->user()->id, ['is_admin' => true]);
+        
+        // Attach other users as members
+        if (!empty($request->user_ids)) {
+            $conversation->users()->attach($request->user_ids, ['is_admin' => false]);
+        }
 
 
         return new ConversationResource($conversation->load('users', 'lastMessage'));

@@ -3,7 +3,7 @@
   <div class="flex flex-col h-full bg-chat-surface text-chat-text">
 
     <!-- Preview Area – flex-1 -->
-    <div class="flex-1 flex items-center justify-center bg-chat-bg/30 relative">
+    <div class="flex-1 flex flex-col items-center justify-center bg-chat-bg/30 relative min-h-0 p-4">
 
       <!-- Close Button -->
       <button @click="$emit('close')"
@@ -15,8 +15,7 @@
 
       <!-- Add More Files -->
       <label class="absolute top-4 left-4 cursor-pointer">
-        <input ref="fileInput" type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx" class="hidden"
-          @change="addMoreFiles" />
+        <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx" class="hidden" @change="addMoreFiles" />
         <div
           class="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white shadow-lg transition">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,16 +24,17 @@
         </div>
       </label>
 
-      <!-- Fixed Preview Box (420x420) -->
+      <!-- Flexible Preview Box -->
       <div
-        class="w-[420px] h-[420px] bg-chat-surface rounded-3xl shadow-2xl overflow-hidden border border-chat-border flex items-center justify-center">
+        class="relative w-full max-w-2xl bg-chat-surface rounded-3xl shadow-xl overflow-hidden border border-chat-border flex items-center justify-center"
+        style="max-height: 100%;">
         <!-- Image -->
         <img v-if="activeFile.type === 'image' && activeFile.preview" :src="activeFile.preview"
-          class="max-w-full max-h-full object-contain" alt="Preview" />
+          class="max-w-full max-h-full object-contain" style="max-height: min(65vh, 100%);" alt="Preview" />
 
         <!-- Video -->
         <video v-else-if="activeFile.type === 'video' && activeFile.preview" :src="activeFile.preview" controls
-          class="max-w-full max-h-full object-contain rounded-2xl" />
+          class="max-w-full max-h-full object-contain rounded-2xl" style="max-height: min(65vh, 100%);" />
 
         <!-- File Placeholder -->
         <div v-else class="text-center px-8">
@@ -50,24 +50,25 @@
       </div>
     </div>
 
-    <!-- Caption Input – h-16 -->
-    <div class="h-16 px-6 flex items-center border-t border-chat-border bg-chat-surface">
+    <!-- Caption Input – Responsive Height -->
+    <div class="h-14 sm:h-16 px-4 sm:px-6 flex items-center border-t border-chat-border bg-chat-surface shrink-0">
       <input v-model="currentCaption" placeholder="Add a caption..."
-        class="flex-1 text-base bg-transparent outline-none placeholder-chat-text-muted" />
-      <span class="text-sm text-chat-text-muted ml-3">
+        class="flex-1 text-sm sm:text-base bg-transparent outline-none placeholder-chat-text-muted" />
+      <span class="text-xs sm:text-sm text-chat-text-muted ml-3">
         {{ currentCaption.length }}/2048
       </span>
     </div>
 
-    <!-- Bottom Thumbnails Row – h-[112px] -->
-    <div class="h-[112px] px-6 bg-chat-bg/30 border-t border-chat-border flex items-center justify-between">
+    <!-- Bottom Thumbnails Row – Responsive Height -->
+    <div
+      class="h-24 sm:h-28 px-4 sm:px-6 bg-chat-bg/30 border-t border-chat-border flex items-center justify-between shrink-0">
 
       <!-- Thumbnails -->
       <div class="flex-1 flex items-center max-w-full">
         <div class="flex items-center gap-3 overflow-x-auto custom-scrollbar py-2 px-1 flex-1">
           <div v-for="(file, index) in files" :key="index" @click="activeIndex = index"
-            class="relative w-20 h-20 rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-all duration-200 shadow-md group"
-            :class="activeIndex === index ? 'ring-4 ring-blue-500 shadow-xl scale-105 z-10' : 'opacity-80 hover:opacity-100 hover:shadow-lg'">
+            class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-all duration-200 shadow-md group"
+            :class="activeIndex === index ? 'ring-2 sm:ring-4 ring-blue-500 shadow-xl scale-105 z-10' : 'opacity-80 hover:opacity-100 hover:shadow-lg'">
             <!-- Thumbnail Content -->
             <img v-if="file.type === 'image' && file.preview" :src="file.preview" class="w-full h-full object-cover"
               alt="Thumbnail" />
@@ -80,8 +81,8 @@
 
             <!-- Remove Button -->
             <button @click.stop="removeFile(index)"
-              class="absolute top-2 right-2 w-7 h-7 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              class="absolute top-1 right-1 sm:top-2 sm:right-2 w-5 h-5 sm:w-7 sm:h-7 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
+              <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -92,15 +93,15 @@
       <!-- Send Button with Count -->
       <div class="flex-shrink-0 ml-auto">
         <button @click="$emit('send', files)"
-          class="relative w-14 h-14 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95">
-          <svg class="w-6 h-6 rotate-90 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          class="relative w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6 rotate-90 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
 
           <!-- Count Badge -->
           <span v-if="files.length > 0"
-            class="absolute -top-2 -right-2 w-8 h-8 bg-chat-surface text-blue-600 text-sm font-bold rounded-full flex items-center justify-center shadow-lg border-2 border-chat-bg">
+            class="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-8 sm:h-8 bg-chat-surface text-blue-600 text-xs sm:text-sm font-bold rounded-full flex items-center justify-center shadow-lg border-2 border-chat-bg">
             {{ files.length }}
           </span>
         </button>
@@ -124,7 +125,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close', 'send', 'file-add']);
-const fileInput = ref<HTMLInputElement | null>(null);
 const activeIndex = ref(0);
 
 const activeFile = computed(() => props.files[activeIndex.value] || { name: 'Unknown', preview: undefined, size: 0, type: 'file' });
@@ -132,8 +132,9 @@ const activeFile = computed(() => props.files[activeIndex.value] || { name: 'Unk
 const currentCaption = computed({
   get: () => props.files[activeIndex.value]?.caption || '',
   set: (val) => {
-    if (props.files[activeIndex.value]) {
-      props.files[activeIndex.value].caption = val;
+    const file = props.files[activeIndex.value];
+    if (file) {
+      file.caption = val;
     }
   }
 });

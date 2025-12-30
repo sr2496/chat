@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { api } from '../axios';
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -51,6 +52,31 @@ export const useUserStore = defineStore('user', {
       window.Echo.leave('presence-chat')
       this.onlineUsers.clear()
       this.presenceJoined = false
+    },
+
+    async logout() {
+      try {
+        await api.post('/logout')
+      } catch (e) {
+        console.error('Logout failed:', e)
+      } finally {
+        this.clearUser()
+        this.leavePresenceChannel()
+      }
+    },
+
+    async updateProfile(data: { name?: string; avatar?: File }) {
+      const formData = new FormData();
+      if (data.name) formData.append('name', data.name);
+      if (data.avatar) formData.append('avatar', data.avatar);
+      
+      const response = await api.post('/user/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      // Backend returns UserResource directly, so user data is in response.data.data
+      this.user = response.data.data;
+      return response.data.data;
     },
   }
 

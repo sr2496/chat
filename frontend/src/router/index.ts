@@ -3,7 +3,7 @@ import { watch } from 'vue'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
-import Chat from '../components/Design/ChatLayout.vue'
+import Chat from '../views/Chat.vue'
 import { useUserStore } from "../stores/user";
 
 const routes = [
@@ -37,7 +37,7 @@ const router = createRouter({
 /**
  * Global Auth Middleware
  */
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
     const userStore = useUserStore();
 
     // If we're still checking authentication → wait for it

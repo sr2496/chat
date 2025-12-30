@@ -1,4 +1,4 @@
-import { createApp, ref } from 'vue'
+import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
@@ -7,7 +7,7 @@ import './echo'
 
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import './fontawesome'
-import 'vue3-emoji-picker/css'
+import '../node_modules/vue3-emoji-picker/dist/style.css'
 
 const app = createApp(App)
 

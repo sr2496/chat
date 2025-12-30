@@ -3,11 +3,32 @@
     <!-- Mobile Header -->
     <div class="sm:hidden bg-chat-surface border-b border-chat-border px-4 py-3 flex items-center justify-between">
       <h2 class="text-xl font-semibold text-chat-text">Chats</h2>
-      <div class="flex gap-2">
-        <button @click="$emit('new-chat')"
-          class="w-9 h-9 flex items-center justify-center rounded-full bg-chat-bg text-chat-text-muted hover:bg-blue-500/20 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 transform hover:scale-105">
+      <div class="flex gap-3">
+        <!-- Create Group (Mobile) -->
+        <button @click="showGroupModal = true"
+          class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-all duration-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0A5.002 5.002 0 019 5c0-1.105-.895-2-2-2m0 0a5.002 5.002 0 013.5 1.5M7 7a5 5 0 0110 0m-10 0a5 5 0 0110 0m-10 0v1" />
+          </svg>
+        </button>
+
+        <!-- New Chat (Mobile) -->
+        <button @click="showNewChatModal = true"
+          class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-all duration-200">
           <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+
+        <!-- Settings (Mobile) -->
+        <button @click="isSettingsOpen = true"
+          class="w-9 h-9 flex items-center justify-center rounded-full bg-chat-bg text-chat-text-muted hover:bg-chat-bg/80 transition-all duration-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
       </div>
@@ -31,7 +52,7 @@
             </button>
 
             <!-- New Message Button (Blue) -->
-            <button @click="$emit('new-chat')"
+            <button @click="showNewChatModal = true"
               class="px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm hover:-translate-y-0.5">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -40,7 +61,7 @@
             </button>
 
             <!-- Create Group Button (Green) -->
-            <button @click="$emit('create-group')"
+            <button @click="showGroupModal = true"
               class="px-4 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm hover:-translate-y-0.5">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -137,6 +158,10 @@
 
     <!-- Settings Offcanvas -->
     <SettingsOffcanvas :is-open="isSettingsOpen" @close="isSettingsOpen = false" />
+    <NewChatModal :is-open="showNewChatModal" :userLoading="conversationsLoading" :users="users"
+      @close="showNewChatModal = false" />
+    <CreateGroupModal :is-open="showGroupModal" :userLoading="conversationsLoading" :users="users"
+      @close="showGroupModal = false" />
   </div>
 </template>
 
@@ -146,15 +171,22 @@ import { useUserStore } from "../../stores/user";
 import { useChatStore } from "../../stores/chat";
 import UserAvatar from "./UserAvatar.vue";
 import SettingsOffcanvas from "./SettingsOffcanvas.vue";
+import NewChatModal from "./NewChatModal.vue";
+import CreateGroupModal from "./CreateGroupModal.vue";
+import { api } from "../../axios";
 
 export default defineComponent({
-  components: { UserAvatar, SettingsOffcanvas },
+  components: { UserAvatar, SettingsOffcanvas, NewChatModal, CreateGroupModal },
   emits: ["new-chat", "create-group"],
   setup() {
     const userStore = useUserStore();
     const chatStore = useChatStore();
     const conversationsLoading = ref(true);
     const isSettingsOpen = ref(false);
+    const users = ref<any[]>([]);
+
+    const showNewChatModal = ref(false);
+    const showGroupModal = ref(false);
 
     const formatTime = (timestamp?: string) => {
       if (!timestamp) return "Just now";
@@ -173,10 +205,15 @@ export default defineComponent({
       await chatStore.loadConversations();
       chatStore.conversations.forEach((c) => chatStore.startListening(c.id));
       userStore.joinPresenceChannel();
+      const res = await api.get("/users");
+      users.value = res.data.data;
       conversationsLoading.value = false;
     });
 
     return {
+      users,
+      showNewChatModal,
+      showGroupModal,
       userStore,
       chatStore,
       conversationsLoading,

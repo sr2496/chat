@@ -2,7 +2,7 @@
   <div class="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden">
     <!-- Desktop Sidebar: Always visible -->
     <div class="hidden sm:flex w-full sm:w-96 lg:w-[420px] border-r border-chat-border flex-col bg-chat-surface">
-      <ChatList @new-chat="showNewChatModal = true" @create-group="showGroupModal = true" />
+      <ChatList />
     </div>
 
     <!-- Main Chat Area -->
@@ -38,50 +38,18 @@
         leave-to-class="translate-x-full">
         <!-- Chat View on Mobile -->
         <div v-if="chatStore.activeConversationId" key="chat" class="flex flex-col h-full bg-[var(--chat-window-bg)]">
-          <!-- Mobile Header with Back Button -->
-          <div class="bg-chat-surface border-b border-chat-border px-4 py-3 flex items-center gap-4">
-            <button @click="chatStore.activeConversationId = null"
-              class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-              <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div class="flex items-center gap-3">
-              <img :src="activeConversation?.display_avatar || 'https://randomuser.me/api/portraits/women/68.jpg'"
-                class="w-10 h-10 rounded-full object-cover" alt="Avatar" />
-              <div>
-                <h3 class="font-semibold text-gray-900 dark:text-gray-100">
-                  {{ activeConversation?.display_name || 'Chat' }}
-                </h3>
-                <p v-if="isOnline" class="text-xs text-green-600 dark:text-green-400">Online</p>
-              </div>
-            </div>
-          </div>
+
 
           <ChatWindow :conversationId="chatStore.activeConversationId" />
         </div>
 
         <!-- Chat List on Mobile (when no conversation) -->
         <div v-else key="list" class="flex flex-col h-full bg-white dark:bg-gray-900">
-          <ChatList @new-chat="showNewChatModal = true" @create-group="showGroupModal = true" />
+          <ChatList />
         </div>
       </transition>
     </div>
   </div>
-  <teleport to="body">
-    <transition name="fade-scale">
-      <NewChatModal v-if="showNewChatModal" :userLoading="userLoading" :users="users"
-        @close="showNewChatModal = false" />
-    </transition>
-  </teleport>
-
-  <teleport to="body">
-    <transition name="fade-scale">
-      <CreateGroupModal v-if="showGroupModal" :userLoading="userLoading" :users="users"
-        @close="showGroupModal = false" />
-    </transition>
-  </teleport>
 </template>
 
 <script lang="ts">
@@ -90,19 +58,12 @@ import { useChatStore } from "../../stores/chat";
 import ChatList from "./ChatList.vue";
 import ChatWindow from "./ChatWindow.vue";
 import { useUserStore } from "../../stores/user";
-import { api } from "../../axios";
-import NewChatModal from "./NewChatModal.vue";
-import CreateGroupModal from "./CreateGroupModal.vue";
 
 export default defineComponent({
-  components: { ChatList, ChatWindow, NewChatModal, CreateGroupModal },
+  components: { ChatList, ChatWindow },
   setup() {
     const userStore = useUserStore();
     const chatStore = useChatStore();
-    const showNewChatModal = ref(false);
-    const showGroupModal = ref(false);
-    const users = ref<any[]>([]);
-    const userLoading = ref(true);
 
     const isMobile = ref(window.innerWidth < 640);
 
@@ -124,12 +85,8 @@ export default defineComponent({
     });
 
     onMounted(async () => {
-      userLoading.value = true;
       updateMobile();
       window.addEventListener("resize", updateMobile);
-      const res = await api.get("/users");
-      users.value = res.data.data;
-      userLoading.value = false;
     });
 
     onUnmounted(() => {
@@ -142,13 +99,6 @@ export default defineComponent({
       isMobile,
       activeConversation,
       isOnline,
-      showNewChatModal,
-      showGroupModal,
-      users,
-      userLoading,
-      openGroupModal() {
-        showGroupModal.value = true;
-      },
     };
   },
 });

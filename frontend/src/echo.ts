@@ -33,10 +33,10 @@ window.Echo = new Echo({
           }
         )
         .then(response => {
-          callback(false, response.data);
+          callback(null, response.data);
         })
         .catch(error => {
-          callback(true, error);
+          callback(error, null);
         });
       },
     };
@@ -46,5 +46,8 @@ window.Echo = new Echo({
 // helper to read cookie
 function getCookie(name: string) {
   const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? decodeURIComponent(match[2]) : '';
+  if (match && match[2]) {
+      return decodeURIComponent(match[2]);
+  }
+  return '';
 }

@@ -16,45 +16,29 @@ class ConversationResource extends JsonResource
     {
         $authUserId = auth()->id();
 
-        $initials = null;
-
-        if ($this->type === 'group') {
-            if ($this->name) {
-                $words = explode(' ', $this->name);
-                $initials = '';
-                foreach ($words as $w) {
-                    $initials .= strtoupper(substr($w, 0, 1));
-                }
-                $initials = substr($initials, 0, 2); // max 2 letters
-            }
-        } else {
-            $otherUser = $this->users->where('id', '!=', $authUserId)->first();
-            if ($otherUser) {
-                $words = explode(' ', $otherUser->name);
-                $initials = '';
-                foreach ($words as $w) {
-                    $initials .= strtoupper(substr($w, 0, 1));
-                }
-                $initials = substr($initials, 0, 2);
-            } else {
-                $initials = '?';
-            }
-        }
-
         return [
             'id' => $this->id,
             'type' => $this->type,
+            'created_at' => $this->created_at,
+            'description' => $this->description, // Added in case it exists or is added later
             'name' => $this->type === 'group'
                 ? $this->name
                 : $this->users->where('id', '!=', $authUserId)->first()?->name,
 
             'display_avatar' => $this->type === 'group'
                 ? ($this->avatar ? asset('storage/' . $this->avatar) : null)
-                : $this->users->where('id', '!=', $authUserId)->first()?->avatar_url,
+                : $this->users->where('id', '!=', $authUserId)->first()?->avatar,
 
-            'initials' => $initials,
-
-            'users' => UserResource::collection($this->users),
+            'users' => $this->users->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar' => $user->avatar ? asset('storage/' . $user->avatar) : null,
+                    'is_online' => $user->isOnline(),
+                    'is_admin' => $user->pivot->is_admin ?? false,
+                ];
+            }),
 
             'unread_count' => $this->unread_count ?? 0,
 
