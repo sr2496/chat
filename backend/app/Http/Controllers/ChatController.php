@@ -209,6 +209,44 @@ class ChatController extends Controller
         // broadcast event with Laravel Echo
         broadcast(new MessageSent($message))->toOthers();
 
+        // Send push notifications to other users in conversation
+        $conversation = Conversation::with('users')->find($conversationId);
+        $recipients = $conversation->users->where('id', '!=', auth()->id());
+        
+        $webPushService = new \App\Services\WebPushService();
+        $sender = auth()->user();
+        
+        foreach ($recipients as $recipient) {
+            // Skip if user has Do Not Disturb enabled
+            if ($recipient->isNotificationMuted()) {
+                continue;
+            }
+            
+            $title = $conversation->type === 'group' 
+                ? $conversation->name 
+                : $sender->name;
+            
+            // Respect message preview preference
+            $body = $recipient->notification_preview 
+                ? ($message->message ?? 'Sent a file')
+                : 'New message';
+            
+            try {
+                $webPushService->sendToUser(
+                    $recipient->id,
+                    $title,
+                    $body,
+                    [
+                        'conversationId' => $conversation->id,
+                        'messageId' => $message->id,
+                    ]
+                );
+            } catch (\Exception $e) {
+                // Log but don't fail message sending if push fails
+                \Log::warning('Push notification failed', ['error' => $e->getMessage()]);
+            }
+        }
+
         return new MessageResource($message->load('sender'));
     }
 

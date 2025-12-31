@@ -168,6 +168,14 @@
             </div>
           </div>
 
+          <!-- Notifications Section -->
+          <div class="space-y-4 mt-8">
+            <h3 class="text-sm font-semibold text-chat-text-muted uppercase tracking-wider">
+              Notifications
+            </h3>
+            <NotificationSettings />
+          </div>
+
           <!-- Account Section -->
           <div class="space-y-4 mt-8">
             <h3 class="text-sm font-semibold text-chat-text-muted uppercase tracking-wider">
@@ -195,6 +203,7 @@ import { useUserStore } from '../../stores/user';
 import { useRouter } from 'vue-router';
 import EmojiPicker from 'vue3-emoji-picker';
 import { useEmojiPicker } from '../../composables/useEmojiPicker';
+import NotificationSettings from './NotificationSettings.vue';
 
 defineProps<{
   isOpen: boolean;

@@ -49,6 +49,9 @@
         </div>
       </transition>
     </div>
+
+    <!-- Notification Toast -->
+    <NotificationToast ref="notificationToast" @click="chatStore.setActiveConversation($event)" />
   </div>
 </template>
 
@@ -58,9 +61,11 @@ import { useChatStore } from "../../stores/chat";
 import ChatList from "./ChatList.vue";
 import ChatWindow from "./ChatWindow.vue";
 import { useUserStore } from "../../stores/user";
+import NotificationToast, { type Notification } from "./NotificationToast.vue";
+import { useNotificationSound } from "../../composables/useNotificationSound";
 
 export default defineComponent({
-  components: { ChatList, ChatWindow },
+  components: { ChatList, ChatWindow, NotificationToast },
   setup() {
     const userStore = useUserStore();
     const chatStore = useChatStore();
@@ -87,11 +92,31 @@ export default defineComponent({
     onMounted(async () => {
       updateMobile();
       window.addEventListener("resize", updateMobile);
+
+      // Set up notification handler
+      (window as any).__chatNotificationHandler = (notification: Notification) => {
+        notificationToast.value?.show(notification);
+      };
+
+      // Set up sound handler
+      (window as any).__chatSoundHandler = () => {
+        // Check user preference for notification sound
+        if (userStore.user?.notification_sound !== false) {
+          soundPlayer.play();
+        }
+      };
     });
 
     onUnmounted(() => {
       window.removeEventListener("resize", updateMobile);
+
+      // Clean up handlers
+      delete (window as any).__chatNotificationHandler;
+      delete (window as any).__chatSoundHandler;
     });
+
+    const notificationToast = ref<InstanceType<typeof NotificationToast> | null>(null);
+    const soundPlayer = useNotificationSound({ volume: 0.6, throttleMs: 1500 });
 
     return {
       userStore,
@@ -99,6 +124,7 @@ export default defineComponent({
       isMobile,
       activeConversation,
       isOnline,
+      notificationToast,
     };
   },
 });

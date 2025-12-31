@@ -22,6 +22,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'notification_sound',
+        'notification_preview',
+        'notification_muted_until',
     ];
 
     /**
@@ -42,6 +45,9 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'notification_sound' => 'boolean',
+        'notification_preview' => 'boolean',
+        'notification_muted_until' => 'datetime',
     ];
 
     public function conversations()
@@ -57,5 +63,10 @@ class User extends Authenticatable
     public function isOnline()
     {
         return Cache::has('user-is-online-' . $this->id);
+    }
+
+    public function isNotificationMuted()
+    {
+        return $this->notification_muted_until && $this->notification_muted_until->isFuture();
     }
 }

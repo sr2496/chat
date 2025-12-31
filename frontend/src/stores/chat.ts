@@ -229,6 +229,14 @@ export const useChatStore = defineStore("chat", {
 
           if (msg.sender.id !== userStore.user?.id) {
             this.pushMessage(msg);
+
+            // Show notification if user is not viewing this conversation or window is not focused
+            if (
+              this.activeConversationId !== conversationId ||
+              !document.hasFocus()
+            ) {
+              this.showNotification(msg);
+            }
           }
 
           // Increment unread if not active
@@ -639,6 +647,45 @@ export const useChatStore = defineStore("chat", {
               }
             }
         return res.data;
+    },
+
+    // Notification handling
+    showNotification(message: Message) {
+      const conversation = this.conversations.find(c => c.id === message.conversation_id);
+      if (!conversation) return;
+
+      // Determine conversation name
+      let conversationName = '';
+      if (conversation.type === 'group') {
+        conversationName = conversation.name || 'Group';
+      } else {
+        const otherUser = this.getOtherUser(conversation);
+        conversationName = otherUser?.name || 'Chat';
+      }
+
+      // Get sender info
+      const userStore = useUserStore();
+      
+      // Create notification payload
+      const notification = {
+        id: `msg-${message.id}-${Date.now()}`,
+        conversationId: message.conversation_id,
+        senderName: message.sender.name,
+        avatar: message.sender.avatar,
+        isOnline: userStore.isUserOnline(message.sender.id),
+        message: message.message || this.getLastMessagePreview(message),
+        conversationName,
+      };
+
+      // Trigger notification via global handler (set by ChatLayout)
+      if ((window as any).__chatNotificationHandler) {
+        (window as any).__chatNotificationHandler(notification);
+      }
+
+      // Play sound
+      if ((window as any).__chatSoundHandler) {
+        (window as any).__chatSoundHandler();
+      }
     },
   },
 });

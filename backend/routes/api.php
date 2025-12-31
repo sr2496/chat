@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\PushNotificationController;
+use App\Http\Controllers\NotificationPreferencesController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,4 +35,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/messages/{conversation}', [ChatController::class, 'sendMessage']);
     Route::post('/conversations/{conversation}/leave', [ChatController::class, 'leaveGroup']);
     Route::post('/conversations/{conversation}/users', [ChatController::class, 'addMembers']);
+    
+    // Push Notifications
+    Route::get('/push/public-key', [PushNotificationController::class, 'publicKey']);
+    Route::post('/push/subscribe', [PushNotificationController::class, 'subscribe']);
+    Route::post('/push/unsubscribe', [PushNotificationController::class, 'unsubscribe']);
+    
+    // Notification Preferences
+    Route::get('/notification-preferences', [NotificationPreferencesController::class, 'index']);
+    Route::put('/notification-preferences', [NotificationPreferencesController::class, 'update']);
 });
