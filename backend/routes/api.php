@@ -31,4 +31,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/groups', [ChatController::class, 'createGroup']);
     Route::post('/private-conversations', [ChatController::class, 'createPrivateConversation']);
     Route::post('/messages/{conversation}', [ChatController::class, 'sendMessage']);
+    Route::post('/conversations/{conversation}/leave', [ChatController::class, 'leaveGroup']);
+    Route::post('/conversations/{conversation}/users', [ChatController::class, 'addMembers']);
 });

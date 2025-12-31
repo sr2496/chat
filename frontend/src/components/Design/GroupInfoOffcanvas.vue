@@ -1,7 +1,6 @@
 <template>
     <transition name="slide-fade">
         <div v-if="isOpen" class="fixed inset-0 z-50 overflow-hidden" @click="close">
-            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"></div>
 
             <div @click.stop class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
 
@@ -87,6 +86,10 @@
             </div>
         </div>
     </transition>
+
+    <!-- Add Members Modal -->
+    <AddMembersModal :is-open="showAddMembersModal" :group-id="groupId" :current-members="group?.users || []"
+        @close="showAddMembersModal = false" @added="onMembersAdded" />
 </template>
 
 <script setup lang="ts">
@@ -94,6 +97,7 @@ import { computed, inject, ref, watch } from 'vue';
 import { useChatStore } from '../../stores/chat';
 import { useUserStore } from '../../stores/user';
 import UserAvatar from './UserAvatar.vue';
+import AddMembersModal from './AddMembersModal.vue';
 
 const props = defineProps<{
     isOpen: boolean;
@@ -109,6 +113,7 @@ const userStore = useUserStore();
 const toaster = inject('toaster') as { value: any } | undefined;
 const loading = ref(false);
 const group = ref<any>(null);
+const showAddMembersModal = ref(false);
 
 // Check if current user is admin
 const isAdmin = computed(() => {
@@ -154,8 +159,11 @@ const close = () => {
 };
 
 const addMembers = () => {
-    toaster?.value?.show('Add members feature coming soon!', 'info');
-    // TODO: Open add members modal
+    showAddMembersModal.value = true;
+};
+
+const onMembersAdded = () => {
+    toaster?.value?.show('Members added successfully', 'success');
 };
 
 const leaveGroup = async () => {

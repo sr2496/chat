@@ -206,6 +206,17 @@ export const useChatStore = defineStore("chat", {
     },
 
     /* ---------------- REALTIME (ECHO) ---------------- */
+    
+    initUserListener() {
+        const userStore = useUserStore();
+        if (!userStore.user) return;
+        
+        window.Echo.private(`chat.${userStore.user.id}`)
+            .listen('.UserAddedToConversation', (e: { conversation: any }) => {
+                this.addConversationIfMissing(e.conversation);
+                this.startListening(e.conversation.id);
+            });
+    },
 
     startListening(conversationId: number) {
       if (this.echoChannels.has(conversationId)) return;
@@ -281,6 +292,45 @@ export const useChatStore = defineStore("chat", {
               e.user_id,
               e.emoji
             );
+
+          }
+        )
+        .listen(
+
+          ".UserLeftGroup",
+          (e: { conversationId: number; userId: number }) => {
+            const index = this.conversations.findIndex((c) => c.id === e.conversationId);
+            if (index !== -1) {
+              const conv = this.conversations[index];
+              if (conv.users) {
+                const updatedUsers = conv.users.filter((u: any) => u.id !== e.userId);
+                // Immutable update
+                this.conversations[index] = {
+                  ...conv,
+                  users: updatedUsers,
+                };
+              }
+            }
+          }
+        )
+        .listen(
+          ".UserAddedToGroup",
+          (e: { conversationId: number; users: any[] }) => {
+            const index = this.conversations.findIndex(c => c.id === e.conversationId);
+            if (index !== -1) {
+              const conv = this.conversations[index];
+              if (conv.users) {
+                const existingIds = new Set(conv.users.map((u: any) => u.id));
+                const uniqueNewUsers = e.users.filter((u: any) => !existingIds.has(u.id));
+                
+                if (uniqueNewUsers.length > 0) {
+                     this.conversations[index] = {
+                        ...conv,
+                        users: [...conv.users, ...uniqueNewUsers]
+                    };
+                }
+              }
+            }
           }
         );
 
@@ -452,6 +502,7 @@ export const useChatStore = defineStore("chat", {
         ...messages.slice(index + 1),
       ];
     },
+
     toggleReaction(messageId: number, emoji: string) {
       const myId = useUserStore().user?.id;
       const convId = this.activeConversationId;
@@ -564,6 +615,30 @@ export const useChatStore = defineStore("chat", {
         console.error('Failed to leave group:', error);
         throw error;
       }
+    },
+
+    async addMembersToGroup(conversationId: number, userIds: number[]) {
+        const res = await api.post(`/conversations/${conversationId}/users`, { user_ids: userIds });
+        const newUsers = res.data.users;
+        
+        // Local update (in case broadcast is slow or self-message is ignored)
+        // Actually, broadcast excludes self, so we MUST update locally for the adder.
+        const index = this.conversations.findIndex(c => c.id === conversationId);
+            if (index !== -1) {
+              const conv = this.conversations[index];
+              if (conv.users) {
+                const existingIds = new Set(conv.users.map((u: any) => u.id));
+                const uniqueNewUsers = newUsers.filter((u: any) => !existingIds.has(u.id));
+                
+                if (uniqueNewUsers.length > 0) {
+                     this.conversations[index] = {
+                        ...conv,
+                        users: [...conv.users, ...uniqueNewUsers]
+                    };
+                }
+              }
+            }
+        return res.data;
     },
   },
 });

@@ -1,6 +1,13 @@
 <!-- MessageBubble.vue -->
 <template>
-  <div :ref="(el) => setMessageRef(message.id, el)" :data-day="getMessageDay(message.created_at)"
+  <!-- System Message -->
+  <div v-if="message.type === 'system'" class="flex justify-center mb-4">
+    <div class="px-4 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-500 dark:text-gray-400 shadow-sm border border-gray-200 dark:border-gray-700">
+      {{ message.message }}
+    </div>
+  </div>
+
+  <div v-else :ref="(el) => setMessageRef(message.id, el)" :data-day="getMessageDay(message.created_at)"
     class="flex mb-6 message-row group relative" :class="isSent ? 'justify-end' : 'gap-3 items-end'">
     <!-- Avatar for received -->
 

@@ -79,8 +79,36 @@ class ChatController extends Controller
             $conversation->users()->attach($request->user_ids, ['is_admin' => false]);
         }
 
+        // --- System Messages (Group Created, Members Added) ---
+        // 1. "Created group"
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'type' => 'system',
+            'message' => auth()->user()->name . ' created group "' . $conversation->name . '"',
+        ]);
 
-        return new ConversationResource($conversation->load('users', 'lastMessage'));
+        // 2. "Added users"
+        if (!empty($request->user_ids)) {
+            $addedUsers = User::whereIn('id', $request->user_ids)->pluck('name');
+            $text = auth()->user()->name . ' added ' . $addedUsers->join(', ', ' and ');
+            
+            Message::create([
+                'conversation_id' => $conversation->id,
+                'sender_id' => auth()->id(),
+                'type' => 'system',
+                'message' => $text,
+            ]);
+        }
+
+        // --- Broadcast to let others know they are in a new conversation ---
+        $resource = new ConversationResource($conversation->load('users', 'lastMessage'));
+        
+        foreach ($request->user_ids as $uid) {
+            broadcast(new \App\Events\UserAddedToConversation($resource, $uid));
+        }
+
+        return $resource;
     }
 
     public function createPrivateConversation(Request $request)
@@ -289,7 +317,92 @@ class ChatController extends Controller
     // Fetch users for search
     public function users()
     {
-        $users = User::where('id', '!=', auth()->id())->select('id', 'name')->get();
+        $users = User::where('id', '!=', auth()->id())->get();
         return UserResource::collection($users);
+    }
+
+    public function leaveGroup(Request $request, Conversation $conversation)
+    {
+        // Ensure it's a group
+        if ($conversation->type !== 'group') {
+            return response()->json(['message' => 'Cannot leave a private conversation'], 400);
+        }
+
+        // 1. Create System Message (User left)
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(), // The one leaving
+            'type' => 'system',
+            'message' => auth()->user()->name . " left the group",
+        ]);
+
+        // 2. Broadcast event so others see it (before detaching)
+        broadcast(new MessageSent($message))->toOthers();
+        broadcast(new \App\Events\UserLeftGroup($conversation->id, auth()->id()))->toOthers();
+
+        // 3. Detach user
+        $conversation->users()->detach(auth()->id());
+
+        return response()->json(['message' => 'Left group successfully']);
+    }
+
+    public function addMembers(Request $request, Conversation $conversation)
+    {
+        // 1. Validation and Authorization
+        $request->validate([
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
+        ]);
+
+        if ($conversation->type !== 'group') {
+            return response()->json(['message' => 'Cannot add members to a private conversation'], 400);
+        }
+
+        // Check if auth user is admin (optional, based on frontend visibility)
+        // $isAdmin = $conversation->users()->where('user_id', auth()->id())->wherePivot('is_admin', true)->exists();
+        // if (!$isAdmin) { return response()->json(['message' => 'Unauthorized'], 403); }
+
+        // 2. Filter out users already in the group
+        $existingIds = $conversation->users()->pluck('users.id')->toArray();
+        $newUserIds = array_diff($request->user_ids, $existingIds);
+
+        if (empty($newUserIds)) {
+            return response()->json(['message' => 'Selected users are already in the group'], 422);
+        }
+
+        // 3. Attach new users
+        $conversation->users()->attach($newUserIds, ['is_admin' => false]);
+
+        // 4. Get User Objects (for response and broadcast)
+        $newUsers = User::whereIn('id', $newUserIds)->get()->map(function ($user) {
+            // Mimic the pivot data structure or resource format expected by frontend
+            $user->is_admin = false; // default for new members
+            return $user;
+        });
+
+        // 5. System Message
+        $adderName = auth()->user()->name;
+        $addedNames = $newUsers->pluck('name')->join(', ', ' and ');
+        $systemMessageText = "$adderName added $addedNames to the group";
+
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'type' => 'system',
+            'message' => $systemMessageText,
+        ]);
+
+        // 6. Broadcast
+        // Broadcast message
+        broadcast(new MessageSent($message))->toOthers();
+        
+        // Broadcast user addition (so clients update member list)
+        // We broadcast detailed user info so clients can just append it
+        broadcast(new \App\Events\UserAddedToGroup($conversation->id, UserResource::collection($newUsers)))->toOthers();
+
+        return response()->json([
+            'message' => 'Members added successfully',
+            'users' => UserResource::collection($newUsers)
+        ]);
     }
 }

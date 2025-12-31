@@ -14,6 +14,9 @@ export default defineComponent({
     const chatStore = useChatStore();
     const userStore = useUserStore();
 
+    // Initialize listeners
+    chatStore.initUserListener();
+
     onUnmounted(() => {
       chatStore.stopAllListeners();
       userStore.leavePresenceChannel();

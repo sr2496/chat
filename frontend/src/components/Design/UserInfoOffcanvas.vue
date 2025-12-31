@@ -1,22 +1,18 @@
 <template>
     <transition name="slide-fade">
         <div v-if="isOpen" class="fixed inset-0 z-50 overflow-hidden" @click="close">
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-black/40 transition-opacity"></div>
-
-            <!-- Offcanvas Panel -->
             <div @click.stop
                 class="absolute right-0 top-0 h-full w-full max-w-md bg-chat-surface shadow-2xl flex flex-col">
                 <!-- Header -->
-                <div class="flex items-center justify-between p-6 border-b border-chat-border">
-                    <h2 class="text-xl font-bold text-chat-text">Contact Info</h2>
+                <div class="flex items-center gap-3 p-4 border-b border-gray-100 bg-white sticky top-0 z-10">
                     <button @click="close"
-                        class="p-2 rounded-lg hover:bg-chat-bg/50 text-chat-text-muted transition-colors">
+                        class="p-2 -ml-1 rounded-full hover:bg-gray-50 text-gray-500 transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
+                    <h2 class="text-xl font-bold text-chat-text">Contact Info</h2>
                 </div>
 
                 <!-- Content -->
@@ -28,18 +24,18 @@
                     <div v-else-if="contact" class="space-y-6">
                         <!-- Avatar Section -->
                         <div class="flex flex-col items-center gap-4 py-6">
-                            <UserAvatar :avatar="contact.avatar" :is-online="contact.is_online" :show-online="true"
-                                size="xl" />
+                            <UserAvatar :avatar="contact.avatar" :is-online="userStore.isUserOnline(contact.id)"
+                                :show-online="true" size="xl" />
                             <div class="text-center">
                                 <h3 class="text-2xl font-bold text-chat-text">{{ contact.name }}</h3>
                                 <p class="text-sm text-chat-text-muted mt-1">{{ contact.email }}</p>
                                 <span :class="[
                                     'inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium',
-                                    contact.is_online
+                                    userStore.isUserOnline(contact.id)
                                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                         : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                                 ]">
-                                    {{ contact.is_online ? 'Online' : 'Offline' }}
+                                    {{ userStore.isUserOnline(contact.id) ? 'Online' : 'Offline' }}
                                 </span>
                             </div>
                         </div>
@@ -96,6 +92,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useChatStore } from '../../stores/chat';
+import { useUserStore } from '../../stores/user';
 import UserAvatar from './UserAvatar.vue';
 
 const props = defineProps<{
@@ -108,6 +105,7 @@ const emit = defineEmits<{
 }>();
 
 const chatStore = useChatStore();
+const userStore = useUserStore();
 const loading = ref(false);
 const contact = ref<any>(null);
 

@@ -25,9 +25,7 @@ class ConversationResource extends JsonResource
                 ? $this->name
                 : $this->users->where('id', '!=', $authUserId)->first()?->name,
 
-            'display_avatar' => $this->type === 'group'
-                ? ($this->avatar ? asset('storage/' . $this->avatar) : null)
-                : $this->users->where('id', '!=', $authUserId)->first()?->avatar,
+            'display_avatar' => $this->display_avatar,
 
             'users' => $this->users->map(function ($user) {
                 return [

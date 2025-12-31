@@ -1,9 +1,6 @@
 <template>
   <transition name="slide-fade">
     <div v-if="isOpen" class="fixed inset-0 z-50 overflow-hidden" @click="handleClose">
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/40 transition-opacity"></div>
-
       <!-- Offcanvas Panel -->
       <div @click.stop class="absolute left-0 top-0 h-full w-full max-w-sm bg-chat-surface shadow-2xl flex flex-col">
 
