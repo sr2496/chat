@@ -29,7 +29,7 @@ class Conversation extends Model
 
     public function lastMessage()
     {
-        return $this->hasOne(Message::class)->latestOfMany();
+        return $this->hasOne(Message::class)->latestOfMany('created_at');
     }
 
     protected function displayAvatar(): Attribute

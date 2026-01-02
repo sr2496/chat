@@ -13,7 +13,7 @@
     </transition>
 
     <!-- Messages Area -->
-    <div v-if="!isMediaComposerOpen" ref="scrollContainer" class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar"
+    <div v-show="!isMediaComposerOpen" ref="scrollContainer" class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar"
       @dragover.prevent="dragOver = true" @dragenter.prevent="dragOver = true" @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop">
       <div class="sticky top-0 z-30 flex justify-center pointer-events-none">
@@ -107,7 +107,7 @@
     </div>
 
     <!-- Input Area (Reply Preview + Input) -->
-    <MessageInput v-if="!isMediaComposerOpen" :replyingTo="replyingTo" @send-text="sendText"
+    <MessageInput ref="messageInputRef" v-show="!isMediaComposerOpen" :replyingTo="replyingTo" @send-text="sendText"
       @queue-files="handleQueueFiles" @cancel-reply="replyingTo = null" @open-emoji="openReactionPicker" />
 
 
@@ -431,7 +431,10 @@ export default defineComponent({
       });
     };
 
+    const messageInputRef = ref<InstanceType<typeof MessageInput> | null>(null);
+
     const closeComposer = () => {
+      console.log('[DEBUG] closeComposer called');
       queuedFiles.value.forEach(f => {
         if (f.preview) {
           URL.revokeObjectURL(f.preview);
@@ -440,6 +443,18 @@ export default defineComponent({
 
       queuedFiles.value = [];
       isMediaComposerOpen.value = false;
+      console.log('[DEBUG] isMediaComposerOpen set to false');
+
+      // Restore focus to the textarea after closing composer
+      // Delay accounts for the fade-slide transition
+      nextTick(() => {
+        console.log('[DEBUG] nextTick callback executing');
+        setTimeout(() => {
+          console.log('[DEBUG] setTimeout callback executing, ref:', messageInputRef.value);
+          messageInputRef.value?.focusInput();
+          console.log('[DEBUG] focusInput called');
+        }, 200);
+      });
     };
 
     const handleSendMedia = async (files: QueuedFile[]) => {
@@ -464,14 +479,19 @@ export default defineComponent({
           file: item.file,
           preview: item.preview,
           type: item.type,
-          progress: 0,
+          progress: 1, // Start at 1% instead of 0% so indicator shows immediately
           controller,
         };
 
+        // Add to uploading messages
         uploadingMessages.value.push(uploadItem);
 
+        // Scroll to show the uploading message
+        await nextTick();
+        scrollToBottom();
+
         try {
-          console.log(item.type);
+          console.log('Uploading file type:', item.type);
 
           const form = new FormData();
           form.append("file", item.file);
@@ -486,6 +506,8 @@ export default defineComponent({
             onUploadProgress: (e) => {
               if (!e.total) return;
               const percent = Math.round((e.loaded * 100) / e.total);
+              console.log('Upload progress:', percent);
+
               uploadingMessages.value = uploadingMessages.value.map(m =>
                 m.tempId === tempId ? { ...m, progress: percent } : m
               );
@@ -783,11 +805,27 @@ export default defineComponent({
           )
           .map((m: any) => m.id);
 
-        if (unreadIds.length) {
-          api.post("/messages/read", {
-            conversation_id: chatStore.activeConversationId,
-            message_ids: unreadIds,
-          });
+        console.log(unreadIds);
+
+        if (unreadIds.length && chatStore.activeConversationId) {
+          try {
+            await api.post("/messages/read", {
+              conversation_id: chatStore.activeConversationId,
+              message_ids: unreadIds,
+            });
+
+            // Update local state - mark messages as read
+            messages.forEach((m: any) => {
+              if (unreadIds.includes(m.id)) {
+                m.read_by_me = true;
+              }
+            });
+
+            // Clear unread count for this conversation
+            chatStore.clearUnread(chatStore.activeConversationId);
+          } catch (error) {
+            console.error('Failed to mark messages as read:', error);
+          }
         }
       },
       { deep: true }

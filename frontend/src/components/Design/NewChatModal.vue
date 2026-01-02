@@ -33,9 +33,10 @@
         </div>
 
         <!-- Scrollable User List -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar px-2 pb-6 min-h-0">
-          <!-- Loading -->
-          <template v-if="userLoading">
+        <div ref="userListRef" class="flex-1 overflow-y-auto custom-scrollbar px-2 pb-6 min-h-0"
+          @scroll="handleUserScroll">
+          <!-- Loading Initial -->
+          <template v-if="chatStore.usersPagination.loading && chatStore.users.length === 0">
             <div v-for="n in 6" :key="n" class="flex items-center gap-4 p-4 animate-pulse">
               <div class="w-12 h-12 rounded-full bg-chat-bg/50" />
               <div class="flex-1 space-y-3">
@@ -68,8 +69,20 @@
               </svg>
             </div>
 
+            <!-- Loading More Indicator -->
+            <div v-if="chatStore.usersPagination.loading && chatStore.users.length > 0" class="text-center py-4">
+              <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            </div>
+
+            <!-- All Users Loaded Message -->
+            <div v-if="!chatStore.usersPagination.hasMore && chatStore.users.length > 0 && !userSearchQuery"
+              class="text-center py-4 text-chat-text-muted text-sm">
+              <p>All users loaded</p>
+            </div>
+
             <!-- Empty State -->
-            <div v-if="filteredUserList.length === 0" class="text-center py-12 text-chat-text-muted">
+            <div v-if="filteredUserList.length === 0 && !chatStore.usersPagination.loading"
+              class="text-center py-12 text-chat-text-muted">
               <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -86,7 +99,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed } from "vue";
+import { defineComponent, ref, computed, watch } from "vue";
 import { useChatStore } from "../../stores/chat";
 import { useUserStore } from "../../stores/user";
 import UserAvatar from "../Design/UserAvatar.vue";
@@ -95,26 +108,36 @@ export default defineComponent({
   components: { UserAvatar },
   props: {
     isOpen: { type: Boolean, required: true, default: false },
-    userLoading: { type: Boolean, required: true, default: false },
-    users: { type: Array as () => any[], required: true, default: () => [] },
   },
   emits: ['close'],
   setup(props, { emit }) {
     const userStore = useUserStore();
     const chatStore = useChatStore();
     const userSearchQuery = ref("");
+    const userListRef = ref<HTMLElement | null>(null);
 
     const normalize = (v = "") => v.toLowerCase().trim();
 
     const filteredUserList = computed(() => {
       const q = normalize(userSearchQuery.value);
-      if (!q) return props.users;
-      return props.users.filter(u => normalize(u.name).includes(q));
+      if (!q) return chatStore.users;
+      return chatStore.users.filter(u => normalize(u.name).includes(q));
     });
 
     const startPrivateChat = async (user: any) => {
       await chatStore.createPrivateConversation(user.id);
       handleClose();
+    };
+
+    const handleUserScroll = () => {
+      const el = userListRef.value;
+      if (!el) return;
+
+      const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+
+      if (bottom && chatStore.usersPagination.hasMore && !chatStore.usersPagination.loading) {
+        chatStore.loadMoreUsers();
+      }
     };
 
     const handleClose = () => {
@@ -124,11 +147,21 @@ export default defineComponent({
       }, 300);
     };
 
+    // Load users when modal opens
+    watch(() => props.isOpen, (isOpen) => {
+      if (isOpen) {
+        chatStore.loadUsers(false);
+      }
+    });
+
     return {
+      chatStore,
       userStore,
       userSearchQuery,
+      userListRef,
       filteredUserList,
       startPrivateChat,
+      handleUserScroll,
       handleClose
     };
   },

@@ -1,33 +1,43 @@
-<!-- MediaComposer.vue – Updated with Custom Chat Theme -->
+<!-- MediaComposer.vue – Redesigned to stay within viewport -->
 <template>
-  <div class="flex flex-col h-full bg-chat-surface text-chat-text">
+  <div class="absolute inset-0 flex flex-col bg-chat-surface text-chat-text overflow-hidden">
 
-    <!-- Preview Area – flex-1 -->
-    <div class="flex-1 flex flex-col items-center justify-center bg-chat-bg/30 relative min-h-0 p-4">
+    <!-- Header with Controls -->
+    <div
+      class="flex-shrink-0 h-16 px-4 flex items-center justify-between border-b border-chat-border bg-gradient-to-r from-blue-500 to-indigo-600">
+      <div class="flex items-center gap-3">
+        <!-- Close Button -->
+        <button @click="$emit('close')"
+          class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center transition-all">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
 
-      <!-- Close Button -->
-      <button @click="$emit('close')"
-        class="absolute top-4 right-4 w-10 h-10 rounded-full bg-chat-surface/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-chat-surface/70 transition">
-        <svg class="w-5 h-5 text-chat-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+        <div class="text-white">
+          <h3 class="font-semibold text-lg">Send Media</h3>
+          <p class="text-xs text-white/80">{{ files.length }} file{{ files.length > 1 ? 's' : '' }}</p>
+        </div>
+      </div>
 
       <!-- Add More Files -->
-      <label class="absolute top-4 left-4 cursor-pointer">
+      <label class="cursor-pointer">
         <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx" class="hidden" @change="addMoreFiles" />
         <div
-          class="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white shadow-lg transition">
+          class="px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 flex items-center gap-2 text-white text-sm font-medium backdrop-blur-sm transition-all">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
+          Add More
         </div>
       </label>
+    </div>
 
-      <!-- Flexible Preview Box -->
+    <!-- Preview Area – Constrained height -->
+    <div class="flex-1 flex flex-col items-center justify-center bg-chat-bg/30 p-4 overflow-hidden min-h-0">
+      <!-- Preview Container -->
       <div
-        class="relative w-full max-w-2xl bg-chat-surface rounded-3xl shadow-xl overflow-hidden border border-chat-border flex items-center justify-center"
-        style="max-height: 100%;">
+        class="relative w-full h-full max-w-3xl bg-chat-surface rounded-2xl shadow-2xl overflow-hidden border border-chat-border flex items-center justify-center">
         <!-- Image -->
         <img v-if="activeFile.type === 'image' && activeFile.preview" :src="activeFile.preview"
           class="max-w-full max-h-full object-contain" style="max-height: min(65vh, 100%);" alt="Preview" />
@@ -50,39 +60,44 @@
       </div>
     </div>
 
-    <!-- Caption Input – Responsive Height -->
-    <div class="h-14 sm:h-16 px-4 sm:px-6 flex items-center border-t border-chat-border bg-chat-surface shrink-0">
+    <!-- Caption Input – Compact -->
+    <div
+      class="flex-shrink-0 h-14 px-4 flex items-center gap-3 border-t border-chat-border bg-chat-surface/80 backdrop-blur-sm">
+      <svg class="w-5 h-5 text-chat-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+      </svg>
       <input v-model="currentCaption" placeholder="Add a caption..."
-        class="flex-1 text-sm sm:text-base bg-transparent outline-none placeholder-chat-text-muted" />
-      <span class="text-xs sm:text-sm text-chat-text-muted ml-3">
+        class="flex-1 text-sm bg-transparent outline-none placeholder-chat-text-muted" maxlength="2048" />
+      <span class="text-xs text-chat-text-muted/70 flex-shrink-0">
         {{ currentCaption.length }}/2048
       </span>
     </div>
 
-    <!-- Bottom Thumbnails Row – Responsive Height -->
+    <!-- Bottom Thumbnails & Send – Compact -->
     <div
-      class="h-24 sm:h-28 px-4 sm:px-6 bg-chat-bg/30 border-t border-chat-border flex items-center justify-between shrink-0">
+      class="flex-shrink-0 h-20 px-4 bg-chat-bg/50 border-t border-chat-border flex items-center gap-3 backdrop-blur-sm">
 
       <!-- Thumbnails -->
-      <div class="flex-1 flex items-center max-w-full">
-        <div class="flex items-center gap-3 overflow-x-auto custom-scrollbar py-2 px-1 flex-1">
+      <div class="flex-1 overflow-x-auto custom-scrollbar">
+        <div class="flex items-center gap-2 py-2">
           <div v-for="(file, index) in files" :key="index" @click="activeIndex = index"
-            class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-all duration-200 shadow-md group"
-            :class="activeIndex === index ? 'ring-2 sm:ring-4 ring-blue-500 shadow-xl scale-105 z-10' : 'opacity-80 hover:opacity-100 hover:shadow-lg'">
+            class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer shrink-0 transition-all duration-200 shadow-md group"
+            :class="activeIndex === index ? 'ring-2 ring-blue-500 shadow-lg scale-110 z-10' : 'opacity-70 hover:opacity-100 hover:scale-105'">
             <!-- Thumbnail Content -->
             <img v-if="file.type === 'image' && file.preview" :src="file.preview" class="w-full h-full object-cover"
               alt="Thumbnail" />
             <video v-else-if="file.type === 'video' && file.preview" :src="file.preview"
               class="w-full h-full object-cover" />
             <div v-else
-              class="w-full h-full bg-chat-bg flex items-center justify-center text-sm font-bold text-chat-text-muted">
+              class="w-full h-full bg-chat-bg flex items-center justify-center text-[10px] font-bold text-chat-text-muted">
               {{ file.name.split('.').pop()?.toUpperCase() || 'FILE' }}
             </div>
 
             <!-- Remove Button -->
             <button @click.stop="removeFile(index)"
-              class="absolute top-1 right-1 sm:top-2 sm:right-2 w-5 h-5 sm:w-7 sm:h-7 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
-              <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-20 opacity-0 group-hover:opacity-100">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -91,21 +106,18 @@
       </div>
 
       <!-- Send Button with Count -->
-      <div class="flex-shrink-0 ml-auto">
-        <button @click="$emit('send', files)"
-          class="relative w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95">
-          <svg class="w-5 h-5 sm:w-6 sm:h-6 rotate-90 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-          </svg>
+      <button @click="$emit('send', files)"
+        class="relative flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95">
+        <svg class="w-5 h-5 rotate-90 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
 
-          <!-- Count Badge -->
-          <span v-if="files.length > 0"
-            class="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-8 sm:h-8 bg-chat-surface text-blue-600 text-xs sm:text-sm font-bold rounded-full flex items-center justify-center shadow-lg border-2 border-chat-bg">
-            {{ files.length }}
-          </span>
-        </button>
-      </div>
+        <!-- Count Badge -->
+        <span v-if="files.length > 1"
+          class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-white text-blue-600 text-xs font-bold rounded-full flex items-center justify-center shadow-md border-2 border-chat-surface">
+          {{ files.length }}
+        </span>
+      </button>
     </div>
   </div>
 </template>

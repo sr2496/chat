@@ -19,11 +19,13 @@ use Illuminate\Support\Facades\DB;
 class ChatController extends Controller
 {
     // List conversations for auth user
-    public function conversations()
+    public function conversations(Request $request)
     {
         $userId = auth()->id();
+        $limit = $request->get('limit', 20);
+        $afterId = $request->get('after_id'); // Cursor for pagination
 
-        $conversations = auth()->user()
+        $query = auth()->user()
             ->conversations()
             ->where(function ($q) {
                 $q->where('type', 'group')
@@ -32,9 +34,19 @@ class ChatController extends Controller
             ->with(['users', 'lastMessage'])
             ->withCount([
                 'messages as unread_count' => function ($q) use ($userId) {
+                    // Get the timestamp of the last message this user read in each conversation
+                    // A message is unread if:
+                    // 1. It's from someone else (sender_id != userId)
+                    // 2. AND either:
+                    //    a. User has never read any message in this conversation, OR
+                    //    b. Message was created AFTER the user's last read message
+                    
                     $q->where('sender_id', '!=', $userId)
-                        ->whereDoesntHave('readers', function ($r) use ($userId) {
-                            $r->where('user_id', $userId);
+                        ->where(function ($subQ) use ($userId) {
+                            // Messages that don't have a read record for this user
+                            $subQ->whereDoesntHave('readers', function ($r) use ($userId) {
+                                $r->where('user_id', $userId);
+                            });
                         });
                 }
             ])
@@ -43,10 +55,29 @@ class ChatController extends Controller
                     ->whereColumn('conversation_id', 'conversations.id')
                     ->latest()
                     ->limit(1)
-            )
-            ->get();
+            );
 
-        return ConversationResource::collection($conversations);
+        // Apply cursor pagination
+        if ($afterId) {
+            $query->where('conversations.id', '<', $afterId);
+        }
+
+        // Fetch one extra to check if there are more
+        $conversations = $query->limit($limit + 1)->get();
+
+        // Check if there are more results
+        $hasMore = $conversations->count() > $limit;
+        if ($hasMore) {
+            $conversations->pop(); // Remove the extra item
+        }
+
+        return response()->json([
+            'data' => ConversationResource::collection($conversations),
+            'meta' => [
+                'has_more' => $hasMore,
+                'next_cursor' => $hasMore ? $conversations->last()?->id : null,
+            ],
+        ]);
     }
 
     // Create group conversation
@@ -257,7 +288,7 @@ class ChatController extends Controller
 
         $query = Message::with(['sender', 'readers', 'reactions.user', 'replyTo.sender'])
             ->where('conversation_id', $conversationId)
-            ->orderBy('id', 'desc');
+            ->orderBy('created_at', 'desc');
         // Reverse items so frontend gets oldest → newest
         if ($beforeId) {
             $query->where('id', '<', $beforeId);
@@ -352,11 +383,37 @@ class ChatController extends Controller
 
 
 
-    // Fetch users for search
-    public function users()
+    // Fetch users for search with pagination
+    public function users(Request $request)
     {
-        $users = User::where('id', '!=', auth()->id())->get();
-        return UserResource::collection($users);
+        $userId = auth()->id();
+        $limit = $request->get('limit', 20);
+        $afterId = $request->get('after_id');
+        
+        $query = User::where('id', '!=', $userId)
+            ->orderBy('name', 'asc');
+        
+        // Apply cursor pagination
+        if ($afterId) {
+            $query->where('id', '>', $afterId);
+        }
+        
+        // Fetch one extra to check if there are more
+        $users = $query->limit($limit + 1)->get();
+        
+        // Check if there are more results
+        $hasMore = $users->count() > $limit;
+        if ($hasMore) {
+            $users->pop(); // Remove the extra item
+        }
+        
+        return response()->json([
+            'data' => UserResource::collection($users),
+            'meta' => [
+                'has_more' => $hasMore,
+                'next_cursor' => $hasMore ? $users->last()?->id : null,
+            ],
+        ]);
     }
 
     public function leaveGroup(Request $request, Conversation $conversation)

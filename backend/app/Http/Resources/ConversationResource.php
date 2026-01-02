@@ -45,6 +45,7 @@ class ConversationResource extends JsonResource
                     'message' => $this->lastMessage->message,
                     'type' => $this->lastMessage->type,
                     'time' => $this->lastMessage->created_at,
+                    'file_name' => $this->lastMessage->file_name ?? null,
                 ];
             }),
         ];

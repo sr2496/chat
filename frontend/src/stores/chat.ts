@@ -29,6 +29,17 @@ interface Message {
 export const useChatStore = defineStore("chat", {
   state: () => ({
     conversations: [] as any[],
+    conversationPagination: {
+      nextCursor: null as number | null,
+      hasMore: true,
+      loading: false,
+    },
+    users: [] as any[],
+    usersPagination: {
+      nextCursor: null as number | null,
+      hasMore: true,
+      loading: false,
+    },
     messagesByConversation: {} as Record<number, Message[]>,
     pagination: {} as Record<
       number,
@@ -111,9 +122,92 @@ export const useChatStore = defineStore("chat", {
   actions: {
     /* ---------------- CONVERSATIONS ---------------- */
 
-    async loadConversations() {
-      const res = await api.get("/conversations");
-      this.conversations = res.data.data;
+    async loadConversations(loadMore = false) {
+      // Prevent concurrent loading
+      if (this.conversationPagination.loading) return;
+
+      // If trying to load more but no more available, return
+      if (loadMore && !this.conversationPagination.hasMore) return;
+
+      this.conversationPagination.loading = true;
+
+      try {
+        const params: any = { limit: 20 };
+
+        // Add cursor for pagination if loading more
+        if (loadMore && this.conversationPagination.nextCursor) {
+          params.after_id = this.conversationPagination.nextCursor;
+        }
+
+        const res = await api.get("/conversations", { params });
+
+        if (loadMore) {
+          // Append new conversations to existing list
+          this.conversations = [...this.conversations, ...res.data.data];
+        } else {
+          // Replace all conversations (initial load or refresh)
+          this.conversations = res.data.data;
+        }
+
+        // Update pagination metadata
+        this.conversationPagination.hasMore = res.data.meta?.has_more ?? false;
+        this.conversationPagination.nextCursor = res.data.meta?.next_cursor ?? null;
+      } finally {
+        this.conversationPagination.loading = false;
+      }
+    },
+
+    async loadMoreConversations() {
+      await this.loadConversations(true);
+    },
+
+    /* ---------------- USERS ---------------- */
+
+    async loadUsers(loadMore = false) {
+      // Reset state for initial load
+      if (!loadMore) {
+        this.users = [];
+        this.usersPagination.nextCursor = null;
+        this.usersPagination.hasMore = true;
+      }
+
+      // Prevent concurrent loading or loading when no more data
+      if (this.usersPagination.loading || (loadMore && !this.usersPagination.hasMore)) {
+        return;
+      }
+
+      this.usersPagination.loading = true;
+
+      try {
+        const params: any = { limit: 20 };
+
+        // Add cursor for pagination if loading more
+        if (this.usersPagination.nextCursor) {
+          params.after_id = this.usersPagination.nextCursor;
+        }
+
+        const res = await api.get("/users", { params });
+
+        if (loadMore) {
+          // Append new users to existing list
+          this.users = [...this.users, ...res.data.data];
+        } else {
+          // Replace all users (initial load)
+          this.users = res.data.data;
+        }
+
+        // Update pagination metadata
+        this.usersPagination.hasMore = res.data.meta?.has_more ?? false;
+        this.usersPagination.nextCursor = res.data.meta?.next_cursor ?? null;
+      } catch (error) {
+        console.error("Failed to load users:", error);
+      } finally {
+        this.usersPagination.loading = false;
+      }
+    },
+
+    async loadMoreUsers() {
+      await this.loadUsers(true);
     },
 
     setActiveConversation(conversationId: number) {
@@ -432,13 +526,13 @@ export const useChatStore = defineStore("chat", {
 
       switch (msg.type) {
         case "image":
-          return "📷 Photo";
+          return msg.message ? `📷 ${msg.message}` : "📷 Photo";
         case "video":
-          return "🎥 Video";
+          return msg.message ? `🎥 ${msg.message}` : "🎥 Video";
         case "audio":
           return "🎤 Voice message";
         case "file":
-          return "📎 File";
+          return `📎 ${(msg as any).file_name || "File"}`;
         default:
           return msg.message?.trim() || "";
       }

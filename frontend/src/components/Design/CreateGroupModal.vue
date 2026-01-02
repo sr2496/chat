@@ -66,8 +66,9 @@
               </div>
 
               <!-- User List -->
-              <div class="flex-1 overflow-y-auto custom-scrollbar px-2">
-                <template v-if="userLoading">
+              <div ref="groupUserListRef" class="flex-1 overflow-y-auto custom-scrollbar px-2"
+                @scroll="handleGroupUserScroll">
+                <template v-if="chatStore.usersPagination.loading && chatStore.users.length === 0">
                   <div v-for="n in 5" :key="n" class="flex items-center gap-4 p-4 animate-pulse">
                     <div class="w-12 h-12 rounded-full bg-chat-bg" />
                     <div class="flex-1 h-4 bg-chat-bg rounded w-1/2" />
@@ -93,6 +94,17 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
+                  </div>
+
+                  <!-- Loading More Indicator -->
+                  <div v-if="chatStore.usersPagination.loading && chatStore.users.length > 0" class="text-center py-4">
+                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
+                  </div>
+
+                  <!-- All Users Loaded -->
+                  <div v-if="!chatStore.usersPagination.hasMore && chatStore.users.length > 0 && !groupUserSearch"
+                    class="text-center py-4 text-chat-text-muted text-sm">
+                    <p>All users loaded</p>
                   </div>
                 </template>
               </div>
@@ -210,7 +222,7 @@
   </transition>
 </template>
 <script lang="ts">
-import { defineComponent, ref, computed } from "vue";
+import { defineComponent, ref, computed, watch } from "vue";
 import { useChatStore } from "../../stores/chat";
 import { useUserStore } from "../../stores/user";
 import UserAvatar from "../Design/UserAvatar.vue";
@@ -224,8 +236,6 @@ export default defineComponent({
   components: { UserAvatar, EmojiPicker },
   props: {
     isOpen: { type: Boolean, required: true, default: false },
-    userLoading: { type: Boolean, required: true, default: false },
-    users: { type: Array as () => any[], required: true, default: () => [] },
   },
   emits: ['close'],
   setup(props, { emit }) {
@@ -256,6 +266,7 @@ export default defineComponent({
     const groupName = ref("");
     const groupUserSearch = ref("");
     const selectedGroupUsers = ref<any[]>([]);
+    const groupUserListRef = ref<HTMLElement | null>(null);
 
     // Group Icon State
     const fileInput = ref<HTMLInputElement | null>(null);
@@ -266,8 +277,8 @@ export default defineComponent({
 
     const filteredGroupUsers = computed(() => {
       const q = normalize(groupUserSearch.value);
-      if (!q) return props.users;
-      return props.users.filter(u => normalize(u.name).includes(q));
+      if (!q) return chatStore.users;
+      return chatStore.users.filter(u => normalize(u.name).includes(q));
     });
 
     const toggleGroupUser = (user: any) => {
@@ -301,6 +312,17 @@ export default defineComponent({
       }
     };
 
+    const handleGroupUserScroll = () => {
+      const el = groupUserListRef.value;
+      if (!el) return;
+
+      const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+
+      if (bottom && chatStore.usersPagination.hasMore && !chatStore.usersPagination.loading) {
+        chatStore.loadMoreUsers();
+      }
+    };
+
     const createGroup = async () => {
       if (!groupName.value.trim() || selectedGroupUsers.value.length === 0) return;
 
@@ -328,15 +350,25 @@ export default defineComponent({
       }, 300);
     };
 
+    // Load users when modal opens
+    watch(() => props.isOpen, (isOpen) => {
+      if (isOpen) {
+        chatStore.loadUsers(false);
+      }
+    });
+
     return {
+      chatStore,
       userStore,
       groupName,
       groupUserSearch,
+      groupUserListRef,
       filteredGroupUsers,
       toggleGroupUser,
       selectedGroupUsers,
       createGroup,
       handleCloseGroupModal,
+      handleGroupUserScroll,
       currentStep,
       slideTransition,
       nextStep,

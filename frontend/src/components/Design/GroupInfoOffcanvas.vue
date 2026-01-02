@@ -26,7 +26,8 @@
                         <!-- Profile Section -->
                         <div class="flex flex-col items-center">
                             <div class="p-1 rounded-full ring-1 ring-gray-100 mb-4">
-                                <UserAvatar :avatar="group.avatar" :is-group="true" size="xl" class="bg-gray-50" />
+                                <UserAvatar :avatar="group.display_avatar" :is-group="true" size="xl"
+                                    class="bg-gray-50" />
                             </div>
                             <h3 class="text-2xl font-bold text-gray-900 text-center">{{ group.name }}</h3>
                             <p v-if="group.description" class="text-sm text-gray-500 max-w-sm text-center mt-2">{{

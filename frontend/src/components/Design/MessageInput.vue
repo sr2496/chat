@@ -53,7 +53,7 @@
 
       <!-- Text Input -->
       <textarea v-show="!isRecording && !recordedAudio" v-model="inputText" @keydown.enter.exact.prevent="sendMessage"
-        @keydown.enter.shift.exact="" rows="1" placeholder="Type a message..."
+        @keydown.enter.shift.exact="" placeholder="Type a message..." style="min-height: 24px;"
         class="flex-1 bg-transparent outline-none text-sm resize-none max-h-32 overflow-y-auto py-0.5 text-chat-text placeholder-chat-text-muted"
         ref="textareaRef" />
 
@@ -334,6 +334,13 @@ onMounted(() => {
   });
 });
 
+// Watch for when component becomes visible and reset height
+watch(() => [props.replyingTo, inputText.value], () => {
+  nextTick(() => {
+    autoResize();
+  });
+});
+
 // Voice recording functions remain unchanged...
 const startRecording = (_e: MouseEvent | TouchEvent) => {
   isCancelling.value = false;
@@ -455,6 +462,34 @@ const cancelRecording = () => {
     stopRecording();
   }, 300);
 };
+
+// Expose method for parent to focus the input
+defineExpose({
+  focusInput: () => {
+    nextTick(() => {
+      autoResize(); // Restore proper height first
+
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        const el = textareaRef.value;
+        if (el) {
+          // Ensure element is focusable
+          if (!el.hasAttribute('tabindex')) {
+            el.setAttribute('tabindex', '-1');
+          }
+          el.focus();
+
+          // Verify focus was set
+          if (document.activeElement !== el) {
+            // Retry focus if it didn't work
+            setTimeout(() => el.focus(), 10);
+          }
+        }
+      });
+    });
+  }
+});
+
 </script>
 
 <style scoped>
