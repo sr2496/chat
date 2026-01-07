@@ -58,7 +58,7 @@ export function usePushNotifications() {
       // Subscribe to push
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as any,
       });
 
       // Send subscription to backend
@@ -124,7 +124,6 @@ export function usePushNotifications() {
    * Check if already subscribed
    */
   const checkSubscription = async (): Promise<boolean> => {
-    console.log(permission.value);
     
     if (!isSupported.value || permission.value !== 'granted') {
       return false;
@@ -183,7 +182,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
+    binary += String.fromCharCode(bytes[i]!);
   }
   return window.btoa(binary);
 }

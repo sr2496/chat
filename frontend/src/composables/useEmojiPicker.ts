@@ -62,7 +62,6 @@ export function useEmojiPicker(options: EmojiPickerOptions = {}) {
     if (options.onSelectEmoji) {
       options.onSelectEmoji(emoji);
     }
-    showEmojiPicker.value = false;
   };
 
   // Handle click outside to close

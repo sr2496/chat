@@ -34,12 +34,7 @@ export default defineComponent({
       }
     }, { immediate: true });
 
-    // Reset title on focus
-    const handleFocus = () => {
-      if (chatStore.activeConversationId) {
-        document.title = 'ChatApp';
-      }
-    };
+
 
     // Handle service worker messages (navigation from push notification click)
     const handleServiceWorkerMessage = (event: MessageEvent) => {
@@ -56,7 +51,7 @@ export default defineComponent({
     };
 
     onMounted(async () => {
-      window.addEventListener('focus', handleFocus);
+      // window.addEventListener('focus', handleFocus);
 
       // Register service worker
       await registerServiceWorker();
@@ -64,7 +59,6 @@ export default defineComponent({
       // Check if push notifications are supported
       if (isSupported.value) {
         const isSubscribed = await checkSubscription();
-        console.log(isSubscribed);
 
         if (isSubscribed) {
           console.log('Already subscribed to push notifications');
@@ -96,7 +90,7 @@ export default defineComponent({
     onUnmounted(() => {
       chatStore.stopAllListeners();
       userStore.leavePresenceChannel();
-      window.removeEventListener('focus', handleFocus);
+      // window.removeEventListener('focus', handleFocus);
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);

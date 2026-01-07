@@ -285,10 +285,6 @@ class ChatSeeder extends Seeder
             $messageCount = rand(10, 50);
             $this->createMessages($conversation, [$authUser, $partner], $messageCount, $messageSamples);
             
-            // Mark older messages as read by auth user (simulate realistic read history)
-            // Keep only the last 30% of messages unread
-            $this->markOlderMessagesAsRead($conversation, $authUser, 0.7);
-            
             $this->command->info("   ✓ Created private chat with {$partner->name} ({$messageCount} messages)");
         }
     }
@@ -355,9 +351,6 @@ class ChatSeeder extends Seeder
             // Generate 20-100 messages
             $messageCount = rand(20, 100);
             $this->createMessages($conversation, $allMembers->all(), $messageCount, $messageSamples);
-            
-            // Mark older messages as read (60% for groups - usually more unread in groups)
-            $this->markOlderMessagesAsRead($conversation, $authUser, 0.6);
             
             $this->command->info("   ✓ Created group '{$groupName}' with {$allMembers->count()} members ({$messageCount} messages)");
             
@@ -464,11 +457,12 @@ class ChatSeeder extends Seeder
                 
                 // Download actual sample video
                 try {
-                    // Use sample video from sample-videos.com
+                    // Use sample video from Google Storage (reliable)
                     $videoUrls = [
-                        'https://sample-videos.com/video321/mp4/240/big_buck_bunny_240p_1mb.mp4',
+                        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
                         'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
                         'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+                        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
                     ];
                     
                     $videoUrl = $videoUrls[array_rand($videoUrls)];
@@ -513,19 +507,21 @@ class ChatSeeder extends Seeder
                     '🎙️ Quick voice note',
                 ];
                 
-                // Download actual sample audio
+                // Download actual sample audio from Google Actions (reliable OGG files)
                 try {
-                    // Use sample audio files (short MP3 samples)
                     $audioUrls = [
-                        'https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav',
-                        'https://www2.cs.uic.edu/~i101/SoundFiles/PinkPanther30.wav',
+                        'https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg',
+                        'https://actions.google.com/sounds/v1/water/rain_heaviest.ogg',
+                        'https://actions.google.com/sounds/v1/transportation/car_horn.ogg',
+                        'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
                     ];
                     
                     $audioUrl = $audioUrls[array_rand($audioUrls)];
                     $response = Http::timeout(20)->get($audioUrl);
                     
                     if ($response->successful()) {
-                        $filename = 'chat/audio/' . uniqid('aud_') . '.wav';
+                        // These are OGG files
+                        $filename = 'chat/audio/' . uniqid('aud_') . '.ogg';
                         Storage::disk('public')->makeDirectory('chat/audio');
                         Storage::disk('public')->put($filename, $response->body());
                         
@@ -535,8 +531,8 @@ class ChatSeeder extends Seeder
                             'message' => $audioMessages[array_rand($audioMessages)],
                             'type' => 'audio',
                             'file_path' => $filename,
-                            'file_name' => 'voice.wav',
-                            'mime_type' => 'audio/wav',
+                            'file_name' => 'voice.ogg',
+                            'mime_type' => 'audio/ogg',
                             'file_size' => strlen($response->body()),
                             'created_at' => $createdAt,
                             'updated_at' => $createdAt,
@@ -649,39 +645,5 @@ class ChatSeeder extends Seeder
             'I\'m working on it right now, should have it done by end of day. Will keep you posted on the progress.',
             'That\'s a great idea! We should definitely consider that approach for the next phase.',
         ];
-    }
-    
-    /**
-     * Mark older messages as read to simulate realistic read history
-     * 
-     * @param Conversation $conversation
-     * @param User $user
-     * @param float $percentageToRead (0.0 to 1.0) - percentage of messages to mark as read
-     */
-    private function markOlderMessagesAsRead(Conversation $conversation, User $user, float $percentageToRead)
-    {
-        // Get all messages from other users in this conversation
-        $messages = $conversation->messages()
-            ->where('sender_id', '!=', $user->id)
-            ->orderBy('created_at', 'asc')
-            ->get();
-        
-        if ($messages->isEmpty()) {
-            return;
-        }
-        
-        // Calculate how many to mark as read
-        $countToRead = (int) ceil($messages->count() * $percentageToRead);
-        
-        // Mark the oldest X% as read
-        $messagesToRead = $messages->take($countToRead);
-        
-        foreach ($messagesToRead as $message) {
-            \DB::table('message_reads')->insert([
-                'message_id' => $message->id,
-                'user_id' => $user->id,
-                'read_at' => $message->created_at->addSeconds(rand(1, 300)), // Read shortly after message was sent
-            ]);
-        }
     }
 }

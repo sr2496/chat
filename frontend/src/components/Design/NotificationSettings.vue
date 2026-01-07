@@ -116,10 +116,10 @@ const preferences = ref({
     notification_muted_until: null as string | null,
 });
 
-const selectedMuteDuration = ref(0);
+const selectedMuteDuration = ref<number | string>(0);
 const saveStatus = ref<{ type: string; message: string } | null>(null);
 
-const { isSupported: pushSupported, isSubscribed, subscribe, unsubscribe, checkSubscription } = usePushNotifications();
+const { isSupported: pushSupported, subscribe, unsubscribe, checkSubscription } = usePushNotifications();
 const pushEnabled = ref(false);
 
 const isDNDActive = computed(() => {
@@ -181,7 +181,7 @@ const applyMute = async () => {
 
         preferences.value = response.data.data;
 
-        if (duration > 0) {
+        if (typeof duration === 'number' && duration > 0) {
             showSaveStatus('success', 'Do Not Disturb enabled');
         } else {
             showSaveStatus('success', 'Do Not Disturb disabled');

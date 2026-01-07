@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { api } from '../axios';
+import {echo} from '../echo';
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -34,7 +35,7 @@ export const useUserStore = defineStore('user', {
       if (this.presenceJoined || !this.user) return
       this.presenceJoined = true
 
-      window.Echo.join('presence-chat')
+      echo.join('presence-chat')
         .here((users: any[]) => {
           this.onlineUsers = new Set(users.map(u => u.id))
         })
@@ -49,7 +50,7 @@ export const useUserStore = defineStore('user', {
     leavePresenceChannel() {
       if (!this.presenceJoined) return
 
-      window.Echo.leave('presence-chat')
+      echo.leave('presence-chat')
       this.onlineUsers.clear()
       this.presenceJoined = false
     },

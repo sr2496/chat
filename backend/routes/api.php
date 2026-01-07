@@ -44,4 +44,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Notification Preferences
     Route::get('/notification-preferences', [NotificationPreferencesController::class, 'index']);
     Route::put('/notification-preferences', [NotificationPreferencesController::class, 'update']);
+
+    // Video Call
+    Route::post('/video/offer', [\App\Http\Controllers\VideoCallController::class, 'offer']);
+    Route::post('/video/answer', [\App\Http\Controllers\VideoCallController::class, 'answer']);
+    Route::post('/video/candidate', [\App\Http\Controllers\VideoCallController::class, 'candidate']);
+    Route::post('/video/end', [\App\Http\Controllers\VideoCallController::class, 'end']);
 });

@@ -2,7 +2,8 @@
 <template>
   <!-- System Message -->
   <div v-if="message.type === 'system'" class="flex justify-center mb-4">
-    <div class="px-4 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-500 dark:text-gray-400 shadow-sm border border-gray-200 dark:border-gray-700">
+    <div
+      class="px-4 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-500 dark:text-gray-400 shadow-sm border border-gray-200 dark:border-gray-700">
       {{ message.message }}
     </div>
   </div>
@@ -113,7 +114,7 @@
               <div class="flex justify-between text-[10px] font-medium opacity-70">
                 <span>{{ formatAudioTime(currentTime) }}</span>
                 <span>{{ formatAudioTime(duration || message.file_size / 5000)
-                }}<!-- Fallback if duration not ready --></span>
+                  }}<!-- Fallback if duration not ready --></span>
               </div>
             </div>
 
@@ -129,103 +130,111 @@
           </video>
 
           <!-- File Preview -->
-          <div v-else-if="message.type === 'file'"
-            class="flex items-center gap-4 bg-black/5 dark:bg-white/10 rounded-xl p-4 shadow-sm border border-transparent dark:border-white/10">
-            <!-- Dynamic File Icon -->
-            <div class="flex-shrink-0">
-              <!-- PDF -->
-              <svg v-if="fileExt === 'pdf'" class="w-12 h-12 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path fill="#fff" d="M14 2v6h6" />
-                <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
-                  PDF
-                </text>
-              </svg>
-
-              <!-- Word (doc, docx) -->
-              <svg v-else-if="/docx?/.test(fileExt)" class="w-12 h-12 text-blue-600" fill="currentColor"
-                viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path fill="#fff" d="M14 2v6h6" />
-                <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
-                  DOC
-                </text>
-              </svg>
-
-              <!-- Text file -->
-              <svg v-else-if="fileExt === 'txt'" class="w-12 h-12 text-gray-600" fill="currentColor"
-                viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path fill="#fff" d="M14 2v6h6" />
-                <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
-                  TXT
-                </text>
-              </svg>
-
-              <!-- ZIP / Archive -->
-              <svg v-else-if="/zip|rar|7z/.test(fileExt)" class="w-12 h-12 text-amber-600" fill="currentColor"
-                viewBox="0 0 24 24">
-                <path d="M20 9H4l8-7z" />
-                <path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-                <text x="8" y="15" font-size="6" font-weight="bold" fill="#fff">
-                  ZIP
-                </text>
-              </svg>
-
-              <!-- Excel (xls, xlsx) -->
-              <svg v-else-if="/xls[x]?$/.test(fileExt)" class="w-12 h-12 text-green-600" fill="currentColor"
-                viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path fill="#fff" d="M14 2v6h6" />
-                <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
-                  XLS
-                </text>
-              </svg>
-
-              <!-- PowerPoint (ppt, pptx) -->
-              <svg v-else-if="/ppt[x]?$/.test(fileExt)" class="w-12 h-12 text-orange-600" fill="currentColor"
-                viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path fill="#fff" d="M14 2v6h6" />
-                <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
-                  PPT
-                </text>
-              </svg>
-
-              <!-- Generic File Fallback -->
-              <svg v-else class="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-
-            <!-- File Info -->
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                {{ message.file_name }}
-              </p>
-              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                {{ formatSize(message.file_size) }}
-              </p>
-            </div>
-
-            <!-- Download Button -->
-            <a :href="message.file_path" :download="message.file_name" class="flex-shrink-0">
-              <button
-                class="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition shadow-md">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          <div v-else-if="message.type === 'file'">
+            <div
+              class="flex items-center gap-4 bg-black/5 dark:bg-white/10 rounded-xl p-4 shadow-sm border border-transparent dark:border-white/10">
+              <!-- Dynamic File Icon -->
+              <div class="flex-shrink-0">
+                <!-- PDF -->
+                <svg v-if="fileExt === 'pdf'" class="w-12 h-12 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path fill="#fff" d="M14 2v6h6" />
+                  <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
+                    PDF
+                  </text>
                 </svg>
-              </button>
-            </a>
+
+                <!-- Word (doc, docx) -->
+                <svg v-else-if="/docx?/.test(fileExt)" class="w-12 h-12 text-blue-600" fill="currentColor"
+                  viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path fill="#fff" d="M14 2v6h6" />
+                  <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
+                    DOC
+                  </text>
+                </svg>
+
+                <!-- Text file -->
+                <svg v-else-if="fileExt === 'txt'" class="w-12 h-12 text-gray-600" fill="currentColor"
+                  viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path fill="#fff" d="M14 2v6h6" />
+                  <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
+                    TXT
+                  </text>
+                </svg>
+
+                <!-- ZIP / Archive -->
+                <svg v-else-if="/zip|rar|7z/.test(fileExt)" class="w-12 h-12 text-amber-600" fill="currentColor"
+                  viewBox="0 0 24 24">
+                  <path d="M20 9H4l8-7z" />
+                  <path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                  <text x="8" y="15" font-size="6" font-weight="bold" fill="#fff">
+                    ZIP
+                  </text>
+                </svg>
+
+                <!-- Excel (xls, xlsx) -->
+                <svg v-else-if="/xls[x]?$/.test(fileExt)" class="w-12 h-12 text-green-600" fill="currentColor"
+                  viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path fill="#fff" d="M14 2v6h6" />
+                  <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
+                    XLS
+                  </text>
+                </svg>
+
+                <!-- PowerPoint (ppt, pptx) -->
+                <svg v-else-if="/ppt[x]?$/.test(fileExt)" class="w-12 h-12 text-orange-600" fill="currentColor"
+                  viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path fill="#fff" d="M14 2v6h6" />
+                  <text x="7" y="15" font-size="6" font-weight="bold" fill="#fff">
+                    PPT
+                  </text>
+                </svg>
+
+                <!-- Generic File Fallback -->
+                <svg v-else class="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+
+              <!-- File Info -->
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {{ message.file_name }}
+                </p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  {{ formatSize(message.file_size) }}
+                </p>
+              </div>
+
+              <!-- Download Button -->
+              <a :href="message.file_path" :download="message.file_name" class="flex-shrink-0">
+                <button
+                  class="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition shadow-md">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
+              </a>
+            </div>
+
+            <!-- Caption for Files -->
+            <p v-if="message.message"
+              class="mt-2 text-sm leading-relaxed break-all whitespace-pre-wrap overflow-wrap-anywhere">
+              {{ message.message }}
+            </p>
           </div>
 
           <!-- Time + Read Receipt -->
           <div class="flex justify-end items-center gap-1 mt-2">
             <span class="text-[11px] opacity-70">{{
               formatTime(message.created_at)
-            }}</span>
+              }}</span>
             <span v-if="isSent" class="text-[11px]" :class="readClass">
               {{ message?.read_by_count > 0 ? "✓✓" : "✓" }}
             </span>

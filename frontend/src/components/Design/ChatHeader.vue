@@ -54,7 +54,9 @@
                 </svg>
             </button>
 
-            <button class="p-2.5 rounded-full hover:bg-chat-bg/50 dark:hover:bg-gray-800 transition">
+            <!-- Video Call Button -->
+            <button @click="$emit('video-call')" v-if="!isGroup"
+                class="p-2.5 rounded-full hover:bg-chat-bg/50 dark:hover:bg-gray-800 transition">
                 <svg class="w-5 h-5 text-chat-text-muted dark:text-gray-400" fill="none" stroke="currentColor"
                     viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"

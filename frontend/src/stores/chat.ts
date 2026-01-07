@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { api } from "../axios";
 import { useUserStore } from "./user";
+import { echo } from "../echo";
 
 interface MessageReply {
   id: number;
@@ -53,7 +54,6 @@ export const useChatStore = defineStore("chat", {
     echoChannels: new Map<number, any>(),
     searchQuery: "",
     typingUsers: {} as Record<number, number[]>,
-    firstUnreadByConversation: {} as Record<number, number | null>,
     mutedConversations: [] as number[],
   }),
 
@@ -116,6 +116,18 @@ export const useChatStore = defineStore("chat", {
           conversation.users.find((u: any) => u.id !== currentUserId) || null
         );
       };
+    },
+
+    computeFirstUnread: (state) => (conversationId: number | null) => {
+      if (!conversationId) return null;
+      const msgs = state.messagesByConversation[conversationId] || [];
+      const myId = useUserStore().user?.id;
+
+      const firstUnread = msgs.find(
+        (m) => !m.read_by_me && m.sender.id !== myId
+      );
+      
+      return firstUnread?.id ?? null;
     },
   },
 
@@ -213,18 +225,6 @@ export const useChatStore = defineStore("chat", {
     setActiveConversation(conversationId: number) {
       this.activeConversationId = conversationId;
     },
-
-    computeFirstUnread(conversationId: number) {
-      const msgs = this.messagesByConversation[conversationId] || [];
-      const myId = useUserStore().user?.id;
-
-      const firstUnread = msgs.find(
-        (m) => !m.read_by_me && m.sender.id !== myId
-      );
-
-      this.firstUnreadByConversation[conversationId] = firstUnread?.id ?? null;
-    },
-
     /* ---------------- MESSAGES ---------------- */
 
     async loadMessages(conversationId: number, loadMore = false) {
@@ -247,7 +247,7 @@ export const useChatStore = defineStore("chat", {
         (c) => c.id === conversationId
       );
       if (conversation && conversation.unread_count) {
-        perPage = conversation.unread_count + 5; // load all unread + a few extras
+        perPage = conversation.unread_count + 20; // load all unread + a few extras
       }
 
       try {
@@ -305,7 +305,7 @@ export const useChatStore = defineStore("chat", {
         const userStore = useUserStore();
         if (!userStore.user) return;
         
-        window.Echo.private(`chat.${userStore.user.id}`)
+        echo.private(`chat.${userStore.user.id}`)
             .listen('.UserAddedToConversation', (e: { conversation: any }) => {
                 this.addConversationIfMissing(e.conversation);
                 this.startListening(e.conversation.id);
@@ -317,7 +317,7 @@ export const useChatStore = defineStore("chat", {
 
       const userStore = useUserStore();
 
-      const channel = window.Echo.private(`conversation.${conversationId}`)
+      const channel = echo.private(`conversation.${conversationId}`)
         .listen(".MessageSent", (e: { message: Message }) => {
           const msg = e.message;
 
@@ -441,7 +441,7 @@ export const useChatStore = defineStore("chat", {
 
     stopAllListeners() {
       this.echoChannels.forEach((_, id) => {
-        window.Echo.leave(`conversation.${id}`);
+        echo.leave(`conversation.${id}`);
       });
       this.echoChannels.clear();
     },
@@ -537,6 +537,7 @@ export const useChatStore = defineStore("chat", {
           return msg.message?.trim() || "";
       }
     },
+
     incrementUnread(conversationId: number) {
       const conv = this.conversations.find((c) => c.id === conversationId);
       if (!conv) return;
@@ -675,11 +676,10 @@ export const useChatStore = defineStore("chat", {
         this.conversations = this.conversations.filter(c => c.id !== conversationId);
         delete this.messagesByConversation[conversationId];
         delete this.pagination[conversationId];
-        delete this.firstUnreadByConversation[conversationId];
         
         // Stop listening
         if (this.echoChannels.has(conversationId)) {
-          window.Echo.leave(`conversation.${conversationId}`);
+          echo.leave(`conversation.${conversationId}`);
           this.echoChannels.delete(conversationId);
         }
         
@@ -701,11 +701,10 @@ export const useChatStore = defineStore("chat", {
         this.conversations = this.conversations.filter(c => c.id !== conversationId);
         delete this.messagesByConversation[conversationId];
         delete this.pagination[conversationId];
-        delete this.firstUnreadByConversation[conversationId];
         
         // Stop listening
         if (this.echoChannels.has(conversationId)) {
-          window.Echo.leave(`conversation.${conversationId}`);
+          echo.leave(`conversation.${conversationId}`);
           this.echoChannels.delete(conversationId);
         }
         

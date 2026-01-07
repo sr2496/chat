@@ -12,7 +12,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       scope: '/',
     });
 
-    console.log('Service Worker registered:', registration);
     return registration;
   } catch (error) {
     console.error('Service Worker registration failed:', error);

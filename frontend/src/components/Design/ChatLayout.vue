@@ -28,7 +28,7 @@
 
                 <!-- Chat Window on Desktop -->
                 <div v-else class="flex flex-col h-full bg-[var(--chat-window-bg)]">
-                    <ChatWindow :conversationId="chatStore.activeConversationId" />
+                    <ChatWindow :conversationId="chatStore.activeConversationId" @start-call="handleStartCall" />
                 </div>
             </div>
 
@@ -42,7 +42,7 @@
                     class="flex flex-col h-full bg-[var(--chat-window-bg)]">
 
 
-                    <ChatWindow :conversationId="chatStore.activeConversationId" />
+                    <ChatWindow :conversationId="chatStore.activeConversationId" @start-call="handleStartCall" />
                 </div>
 
                 <!-- Chat List on Mobile (when no conversation) -->
@@ -54,20 +54,30 @@
 
         <!-- Notification Toast -->
         <NotificationToast ref="notificationToast" @click="chatStore.setActiveConversation($event)" />
+
+        <!-- Global Video Call Modal -->
+        <VideoCallModal :is-visible="isVideoModalVisible" :local-stream="localStream" :remote-stream="remoteStream"
+            :is-incoming="!!incomingCall" :caller-name="currentPeerUser?.name" :caller-avatar="currentPeerUser?.avatar"
+            :connection-state="connectionState" @accept="onAcceptCall" @reject="onEndCallFull" @end="onEndCallFull" />
     </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, ref } from "vue";
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from "vue";
 import { useChatStore } from "../../stores/chat";
 import ChatList from "./ChatList.vue";
 import ChatWindow from "./ChatWindow.vue";
 import { useUserStore } from "../../stores/user";
 import NotificationToast, { type Notification } from "./NotificationToast.vue";
 import { useNotificationSound } from "../../composables/useNotificationSound";
+import VideoCallModal from "../VideoCallModal.vue";
+import { useWebRTC } from "../../composables/useWebRTC";
+import { echo } from "../../echo";
+import { api } from "../../axios";
+import incomingCallSoundUrl from "../../assets/sounds/incoming-call.mp3";
 
 export default defineComponent({
-    components: { ChatList, ChatWindow, NotificationToast },
+    components: { ChatList, ChatWindow, NotificationToast, VideoCallModal },
     setup() {
         const userStore = useUserStore();
         const chatStore = useChatStore();
@@ -120,6 +130,166 @@ export default defineComponent({
         const notificationToast = ref<InstanceType<typeof NotificationToast> | null>(null);
         const soundPlayer = useNotificationSound({ volume: 0.6, throttleMs: 1500 });
 
+        // Ringtone player
+        // Ringtone player
+        const ringtonePlayer = new Audio(incomingCallSoundUrl);
+        ringtonePlayer.loop = true;
+
+        let hasInteracted = false;
+        const enableAudio = () => { hasInteracted = true; };
+
+        onMounted(() => {
+            document.addEventListener('click', enableAudio, { once: true });
+            document.addEventListener('scroll', enableAudio, { once: true });
+        });
+
+        // --- Video Call Logic ---
+        const {
+            createOffer, acceptCall, endCall,
+            handleOffer, handleAnswer, handleCandidate,
+            localStream, remoteStream, incomingCall
+        } = useWebRTC();
+
+        const isVideoModalVisible = ref(false);
+        const connectionState = ref<RTCPeerConnectionState | 'new'>('new');
+        const currentCallTargetId = ref<number | null>(null); // To store who we are calling
+
+        // Peer info for display
+        const currentPeerUser = ref<{ name: string; avatar?: string } | null>(null);
+
+        const onSignal = async (type: string, data: any) => {
+            let targetUserId = currentCallTargetId.value;
+
+            // If answering an incoming call, target is the caller
+            if (incomingCall.value) {
+                targetUserId = incomingCall.value.fromUserId;
+            }
+
+            if (targetUserId) {
+                await api.post(`/video/${type}`, {
+                    [type]: data[type],
+                    to_user_id: targetUserId
+                });
+            }
+        };
+
+        const setupVideoCallListeners = () => {
+            if (userStore.user?.id) {
+                echo.private(`user.${userStore.user.id}`)
+                    .listen('.video-call.offer', (e: any) => {
+                        console.log('Received Offer', e);
+                        handleOffer(e.offer, e.fromUserId);
+                        currentCallTargetId.value = e.fromUserId; // Store caller ID
+
+                        // Use caller info from event if available
+                        if (e.user) {
+                            currentPeerUser.value = e.user;
+                        } else {
+                            // Fallback logic
+                            const caller = chatStore.users.find(u => u.id === e.fromUserId) || { name: 'Unknown User' };
+                            currentPeerUser.value = caller;
+                        }
+
+                        // Show modal for incoming call (global)
+                        isVideoModalVisible.value = true;
+
+                        // Play ringtone if not already playing and user interacted
+                        if (hasInteracted) {
+                            ringtonePlayer.play().catch(e => console.error("Audio play failed", e));
+                        } else {
+                            console.warn("Autoplay blocked: User has not interacted with the page yet.");
+                        }
+                    })
+                    .listen('.video-call.answer', (e: any) => {
+                        console.log('Received Answer', e);
+                        ringtonePlayer.pause();
+                        ringtonePlayer.currentTime = 0;
+
+                        handleAnswer(e.answer);
+                        connectionState.value = 'connected';
+                    })
+                    .listen('.video-call.candidate', (e: any) => {
+                        console.log('Received Candidate', e);
+                        handleCandidate(e.candidate);
+                    })
+                    .listen('.video-call.end', (e: any) => {
+                        console.log('Call ended by peer');
+                        onEndCallFull(); // cleanup
+                    });
+            }
+        };
+
+        // Call this on mount if user is ready, or watch user
+        watch(() => userStore.user, (u) => {
+            if (u) setupVideoCallListeners();
+        }, { immediate: true });
+
+        const handleStartCall = async (targetUserId: number) => {
+            console.log('Starting call to:', targetUserId);
+            currentCallTargetId.value = targetUserId;
+
+            // Resolve target info
+            const target = chatStore.users.find(u => u.id === targetUserId);
+            if (target) {
+                currentPeerUser.value = target;
+            } else {
+                // Try to find in conversations
+                const conv = chatStore.conversations.find(c => c.users?.some((u: any) => u.id === targetUserId));
+                const u = conv?.users?.find((u: any) => u.id === targetUserId);
+                currentPeerUser.value = u || { name: 'Calling...' };
+            }
+
+            isVideoModalVisible.value = true;
+            connectionState.value = 'new';
+
+            try {
+                const offer = await createOffer(targetUserId, onSignal);
+                await api.post('/video/offer', {
+                    offer,
+                    to_user_id: targetUserId
+                });
+            } catch (err) {
+                console.error("Failed to start call", err);
+                isVideoModalVisible.value = false;
+                currentCallTargetId.value = null;
+            }
+        };
+
+        const onAcceptCall = async () => {
+            ringtonePlayer.pause();
+            ringtonePlayer.currentTime = 0;
+            try {
+                const result = await acceptCall(onSignal);
+                if (result) {
+                    await api.post('/video/answer', {
+                        answer: result.answer,
+                        to_user_id: result.toUserId
+                    });
+                    connectionState.value = 'connected';
+                }
+            } catch (err) {
+                console.error("Failed to accept call", err);
+            }
+        };
+
+        const onEndCallFull = async () => {
+            ringtonePlayer.pause();
+            ringtonePlayer.currentTime = 0;
+
+            // Send end signal to peer ONLY if we are connected or initiated it or rejecting incoming
+            if (currentCallTargetId.value) {
+                try {
+                    await api.post('/video/end', { to_user_id: currentCallTargetId.value });
+                } catch (e) { console.error('Failed to send end signal', e); }
+            }
+
+            endCall();
+            isVideoModalVisible.value = false;
+            connectionState.value = 'closed';
+            currentCallTargetId.value = null;
+            currentPeerUser.value = null;
+        };
+
         return {
             userStore,
             chatStore,
@@ -127,6 +297,16 @@ export default defineComponent({
             activeConversation,
             isOnline,
             notificationToast,
+            // Video Call props
+            isVideoModalVisible,
+            localStream,
+            remoteStream,
+            incomingCall,
+            connectionState,
+            onAcceptCall,
+            onEndCallFull,
+            handleStartCall,
+            currentPeerUser,
         };
     },
 });

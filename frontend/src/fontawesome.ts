@@ -12,6 +12,13 @@ import {
   faTimes,
   faMagnifyingGlass,
   faComments,
+  faVideo,
+  faUser,
+  faPhone,
+  faPhoneSlash,
+  faMicrophone,
+  faMicrophoneSlash,
+  faVideoSlash,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -24,5 +31,12 @@ library.add(
   faSearch,
   faTimes,
   faMagnifyingGlass,
-  faComments
+  faComments,
+  faVideo,
+  faUser,
+  faPhone,
+  faPhoneSlash,
+  faMicrophone,
+  faMicrophoneSlash,
+  faVideoSlash
 )

@@ -1,138 +1,177 @@
 <!-- MessageInput.vue - Updated with Custom Chat Theme Variables -->
 <template>
-  <div class="bg-chat-surface px-2 sm:px-4 pt-3 pb-4 border-t border-chat-border">
-    <!-- Reply Preview -->
-    <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0 -translate-y-2"
-      enter-to-class="opacity-100 translate-y-0" leave-active-class="transition ease-in duration-150"
-      leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-2">
+  <div class="px-4 pb-4 pt-2 w-full max-w-5xl mx-auto z-20">
+    <!-- Reply Preview Stacked Card -->
+    <transition enter-active-class="transition all duration-300 ease-out cubic-bezier(0.23, 1, 0.32, 1)"
+      enter-from-class="opacity-0 translate-y-4 scale-95" enter-to-class="opacity-100 translate-y-0 scale-100"
+      leave-active-class="transition all duration-200 ease-in" leave-from-class="opacity-100 translate-y-0 scale-100"
+      leave-to-class="opacity-0 translate-y-4 scale-95">
       <div v-if="replyingTo"
-        class="bg-chat-bg/70 dark:bg-gray-800/90 rounded-xl p-3 mb-3 shadow-sm border-l-4 border-blue-500 backdrop-blur-sm">
-        <div class="flex items-center justify-between">
-          <div class="flex-1 min-w-0">
-            <!-- Colorful Sender Name -->
-            <p class="text-xs font-semibold truncate" :class="senderNameColor">
-              {{ replyingTo.senderName || 'someone' }}
-            </p>
+        class="relative mx-2 mb-2 bg-white/90 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-white/5 overflow-hidden ring-1 ring-black/5 dark:ring-white/10">
+        <!-- Decorative subtle colored line based on user -->
+        <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-blue-600"></div>
 
-            <!-- Reply Body -->
-            <p
-              class="text-sm text-chat-text truncate mt-1 break-all whitespace-pre-wrap overflow-wrap-anywhere opacity-90">
+        <div class="flex items-center justify-between p-3 pl-4">
+          <div class="flex-1 min-w-0 mr-4">
+            <div class="flex items-center gap-2 mb-0.5">
+              <svg class="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              <span class="text-xs font-bold tracking-wide uppercase opacity-80" :class="senderNameColor">
+                {{ replyingTo.senderName || 'Unknown' }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-600 dark:text-gray-300 truncate font-medium">
               {{ replyingTo.body }}
             </p>
           </div>
 
-          <!-- Cancel Button -->
-          <button @click="$emit('cancel-reply')" class="ml-3 p-1.5 rounded-full hover:bg-chat-bg/50 transition">
-            <svg class="w-4 h-4 text-chat-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <button @click="$emit('cancel-reply')"
+            class="group p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+            <div class="relative w-5 h-5 flex items-center justify-center">
+              <svg class="w-5 h-5 text-gray-400 group-hover:text-red-500 transition-colors duration-200" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
           </button>
         </div>
       </div>
     </transition>
 
-    <!-- Input Bar -->
-    <div ref="inputBarRef"
-      class="flex items-end gap-2 sm:gap-4 bg-chat-bg/80 dark:bg-gray-800/50 rounded-3xl px-3 sm:px-4 py-3 shadow-inner ring-1 ring-chat-border focus-within:ring-blue-500 dark:focus-within:ring-blue-400 transition-all backdrop-blur-sm">
-      <!-- Emoji Button -->
-      <button v-if="!isRecording" @click="toggleEmojiPicker" ref="emojiContainerRef"
-        class="text-chat-text-muted hover:text-yellow-500 transition text-2xl flex-shrink-0">
-        😊
-      </button>
+    <!-- Main Input Bar -->
+    <div
+      class="relative flex items-end gap-2 p-1.5 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-2xl rounded-[28px] shadow-2xl border border-white/20 dark:border-white/5 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300 ease-out focus-within:ring-2 focus-within:ring-blue-500/30 dark:focus-within:ring-blue-400/30">
 
-      <!-- Attachment Button -->
-      <label v-if="!isRecording" class="cursor-pointer flex-shrink-0">
-        <input ref="fileInput" @change="handleFileSelect" type="file" multiple class="hidden"
-          accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" />
-        <svg class="w-6 h-6 text-chat-text-muted hover:text-blue-600 dark:hover:text-blue-400 transition" fill="none"
-          stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-        </svg>
-      </label>
+      <!-- Left Actions Group -->
+      <div v-if="!isRecording && !recordedAudio" class="flex items-center gap-1 mb-1 ml-1">
+        <!-- Attachment Button -->
+        <label
+          class="group cursor-pointer relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-all duration-200 overflow-hidden">
+          <input ref="fileInput" @change="handleFileSelect" type="file" multiple class="hidden"
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" />
+          <svg
+            class="w-6 h-6 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 group-hover:scale-110 transition-transform duration-200"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </label>
 
-      <!-- Text Input -->
-      <textarea v-show="!isRecording && !recordedAudio" v-model="inputText" @keydown.enter.exact.prevent="sendMessage"
-        @keydown.enter.shift.exact="" placeholder="Type a message..." style="min-height: 24px;"
-        class="flex-1 bg-transparent outline-none text-sm resize-none max-h-32 overflow-y-auto py-0.5 text-chat-text placeholder-chat-text-muted"
-        ref="textareaRef" />
+        <!-- Emoji Button -->
+        <button @click="toggleEmojiPicker" ref="emojiContainerRef"
+          class="group flex items-center justify-center w-10 h-10 rounded-full hover:bg-yellow-50 dark:hover:bg-yellow-500/10 transition-all duration-200">
+          <span
+            class="text-xl filter grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-200">😊</span>
+        </button>
+      </div>
 
-      <!-- Voice Mode UI (Recording or Review) -->
-      <div v-if="isRecording || recordedAudio" class="flex-1 flex items-center gap-3 overflow-hidden">
+      <!-- Text Input Area -->
+      <div v-show="!isRecording && !recordedAudio" class="flex-1 py-3 min-w-0">
+        <textarea ref="textareaRef" v-model="inputText" @keydown.enter.exact.prevent="sendMessage"
+          @keydown.enter.shift.exact="" placeholder="Message..." rows="1" style="min-height: 24px;"
+          class="w-full bg-transparent border-0 outline-none focus:ring-0 p-0 text-[15px] leading-relaxed text-gray-800 dark:text-gray-100 placeholder-gray-400/80 dark:placeholder-gray-500 resize-none max-h-32 overflow-y-auto scrollbar-hide"></textarea>
+      </div>
+
+      <!-- Voice Recording UI -->
+      <div v-if="isRecording || recordedAudio"
+        class="flex-1 flex items-center gap-3 p-1 min-h-[48px] animate-in fade-in slide-in-from-bottom-2 duration-200">
         <!-- Delete Button -->
         <button @click="isRecording ? cancelRecording() : deleteRecording()"
-          class="p-2 rounded-full hover:bg-red-500/20 text-red-500 transition shrink-0">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all duration-200 group"
+          title="Delete">
+          <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M19 7l-.867 12.142A2.227 2.227 0 0116.138 21H7.862a2.227 2.227 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </button>
 
-        <!-- Recording State (Waveform) -->
+        <!-- Active Recording Visualization -->
         <div v-if="isRecording"
-          class="flex-1 flex items-center justify-center gap-1 h-8 bg-chat-surface/70 dark:bg-gray-800 rounded-full px-4">
-          <div class="text-sm font-mono text-chat-text min-w-[50px]">
+          class="flex-1 flex items-center gap-3 bg-red-50 dark:bg-red-900/10 rounded-full px-4 py-2 border border-red-100 dark:border-red-500/10">
+          <div class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></div>
+          <span class="text-sm font-mono font-medium text-red-600 dark:text-red-400 min-w-[45px]">
             {{ formatTime(recordingTime) }}
+          </span>
+          <!-- Waveform Animation -->
+          <div class="flex-1 flex items-center gap-0.5 h-6 opacity-80" :class="{ 'opacity-40': isPaused }">
+            <div class="w-1 bg-red-400 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.5s; animation-delay: 0.1s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.7s; animation-delay: 0.2s"></div>
+            <div class="w-1 bg-red-600 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.4s; animation-delay: 0.0s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.8s; animation-delay: 0.3s"></div>
+            <div class="w-1 bg-red-400 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.6s; animation-delay: 0.15s"></div>
+            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.45s; animation-delay: 0.25s"></div>
+            <!-- Repeat for width -->
+            <div class="hidden sm:block w-1 bg-red-400 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.55s"></div>
+            <div class="hidden sm:block w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
+              style="animation-duration: 0.75s"></div>
           </div>
-          <div class="flex items-center gap-0.5 h-full opacity-70" :class="{ 'opacity-30': isPaused }">
-            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
-              style="animation-duration: 0.6s"></div>
-            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
-              style="animation-duration: 1.1s"></div>
-            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
-              style="animation-duration: 0.9s"></div>
-            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
-              style="animation-duration: 0.7s"></div>
-            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
-              style="animation-duration: 1.2s"></div>
-            <div class="w-1 bg-red-500 rounded-full" :class="{ 'animate-wave': !isPaused }"
-              style="animation-duration: 0.8s"></div>
-          </div>
-          <span v-if="isPaused" class="text-xs text-orange-500 font-medium ml-2">PAUSED</span>
         </div>
 
-        <!-- Review State (Player) -->
-        <div v-else class="flex-1 flex items-center gap-3 bg-chat-surface/60 dark:bg-gray-800 rounded-full px-3 h-10">
-          <button @click="togglePreview" class="text-blue-600 dark:text-blue-400">
-            <svg v-if="!isPlayingPreview" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+        <!-- Audio Preview Player -->
+        <div v-else
+          class="flex-1 flex items-center gap-3 bg-blue-50 dark:bg-blue-900/10 rounded-full px-2 py-1.5 border border-blue-100 dark:border-blue-500/10">
+          <button @click="togglePreview"
+            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white shadow-md hover:bg-blue-600 transition-transform active:scale-95">
+            <svg v-if="!isPlayingPreview" class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
-            <svg v-else class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
             </svg>
           </button>
 
-          <!-- Simple Progress Bar -->
-          <div class="flex-1 h-1 bg-chat-border rounded-full overflow-hidden">
-            <div class="h-full bg-blue-500 transition-all duration-100" :style="{ width: previewProgress + '%' }"></div>
+          <div class="flex-1 flex flex-col justify-center h-full mr-2">
+            <div class="relative h-1 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+              <div class="absolute left-0 top-0 bottom-0 bg-blue-500 transition-all duration-100 ease-linear"
+                :style="{ width: previewProgress + '%' }"></div>
+            </div>
           </div>
-
-          <span class="text-xs text-chat-text-muted font-mono">
+          <span class="text-xs font-mono font-medium text-blue-600 dark:text-blue-300 pr-2">
             {{ formatTime(recordedAudio?.duration || 0) }}
           </span>
         </div>
       </div>
 
-      <!-- Right Side: Send or Mic -->
-      <div class="relative flex-shrink-0">
-        <transition mode="out-in" enter-active-class="transition duration-200 ease-out"
-          enter-from-class="opacity-0 scale-75" enter-to-class="opacity-100 scale-100"
-          leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100"
-          leave-to-class="opacity-0 scale-75">
+      <!-- Right Action Button (Dynamic) -->
+      <div class="relative mb-1 mr-1">
+        <transition mode="out-in" enter-active-class="transition duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)"
+          enter-from-class="opacity-0 scale-50 rotate-90" enter-to-class="opacity-100 scale-100 rotate-0"
+          leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100 scale-100 rotate-0"
+          leave-to-class="opacity-0 scale-50 -rotate-90">
           <!-- Send Text Button -->
           <button v-if="canSend && !isRecording && !recordedAudio" @click="sendMessage"
-            class="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition shadow-lg"
+            class="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 active:scale-95 transition-all duration-300"
             key="send-text">
-            <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            <svg class="w-5 h-5 ml-0.5 -mt-0.5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                 d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </button>
 
-          <!-- Recording Controls -->
-          <div v-else-if="isRecording" class="flex items-center gap-2" key="recording-controls">
+          <!-- Mic Button -->
+          <button v-else-if="!isRecording && !recordedAudio" @click="startRecording"
+            class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-200"
+            key="start-mic">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 14a3 3 0 003-3V4a3 3 0 00-6 0v7a3 3 0 003 3z" />
+              <path d="M5 11a7 7 0 0014 0h-2a5 5 0 01-10 0H5z" />
+              <path d="M12 19v4m-3 0h6" />
+            </svg>
+          </button>
+
+          <!-- Recording Actions Group -->
+          <div v-else-if="isRecording" class="flex items-center gap-2" key="rec-controls">
             <button @click="isPaused ? resumeRecording() : pauseRecording()"
-              class="w-11 h-11 bg-chat-bg rounded-full flex items-center justify-center text-chat-text hover:bg-chat-bg/70 transition shadow-lg">
+              class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition-all">
               <svg v-if="!isPaused" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
               </svg>
@@ -140,47 +179,32 @@
                 <path d="M8 5v14l11-7z" />
               </svg>
             </button>
-
             <button @click="stopRecording"
-              class="w-11 h-11 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition shadow-lg">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              class="w-10 h-10 flex items-center justify-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/40 hover:scale-105 transition-all">
+              <div class="w-3 h-3 bg-white rounded-sm"></div>
             </button>
           </div>
 
-          <!-- Send Voice -->
+          <!-- Send Voice Button -->
           <button v-else-if="recordedAudio" @click="sendVoiceMessage"
-            class="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition shadow-lg"
+            class="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 hover:scale-105 transition-all"
             key="send-voice">
-            <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            <svg class="w-5 h-5 ml-0.5 -mt-0.5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                 d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </button>
-
-          <!-- Mic Button -->
-          <div v-else key="mic">
-            <button @click="startRecording"
-              class="w-11 h-11 bg-chat-bg dark:bg-gray-800 rounded-full flex items-center justify-center text-chat-text-muted shadow-lg hover:bg-chat-bg/70 dark:hover:bg-gray-700 transition">
-              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 14a3 3 0 003-3V4a3 3 0 00-6 0v7a3 3 0 003 3z" />
-                <path d="M5 11a7 7 0 0014 0h-2a5 5 0 01-10 0H5z" />
-                <path d="M12 19v4m-3 0h6" />
-              </svg>
-            </button>
-          </div>
         </transition>
       </div>
     </div>
 
-    <!-- Emoji Picker -->
+    <!-- Emoji Picker Container -->
     <teleport to="body">
-      <div v-if="showEmojiPicker"
-        class="fixed z-50 rounded-2xl shadow-2xl border border-chat-border overflow-hidden bg-chat-surface"
-        :style="emojiPickerStyle" ref="emojiPickerRef">
+      <div v-if="showEmojiPicker" class="fixed z-50 rounded-2xl shadow-2xl overflow-hidden" :style="emojiPickerStyle"
+        ref="emojiPickerRef">
+        <!-- The actual emoji picker component logic remains the same -->
         <EmojiPicker :native="true" @select="onSelectEmoji" :theme="isDark() ? 'dark' : 'light'"
-          class="border border-chat-border rounded-2xl overflow-hidden bg-chat-surface shadow-xl" />
+          class="shadow-2xl border-0 !bg-white/90 dark:!bg-gray-900/95 backdrop-blur-xl" />
       </div>
     </teleport>
   </div>
@@ -302,6 +326,7 @@ const sendMessage = () => {
   if (text) {
     emit('send-text', text);
     inputText.value = '';
+    showEmojiPicker.value = false;
   }
   nextTick(autoResize);
 };
