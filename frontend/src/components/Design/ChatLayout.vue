@@ -212,7 +212,7 @@ export default defineComponent({
                         console.log('Received Candidate', e);
                         handleCandidate(e.candidate);
                     })
-                    .listen('.video-call.end', (e: any) => {
+                    .listen('.video-call.end', () => {
                         console.log('Call ended by peer');
                         onEndCallFull(); // cleanup
                     });
@@ -243,7 +243,7 @@ export default defineComponent({
             connectionState.value = 'new';
 
             try {
-                const offer = await createOffer(targetUserId, onSignal);
+                const offer = await createOffer(onSignal);
                 await api.post('/video/offer', {
                     offer,
                     to_user_id: targetUserId

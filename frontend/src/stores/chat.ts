@@ -241,13 +241,15 @@ export const useChatStore = defineStore("chat", {
 
       pager.loading = true;
 
-      let perPage = 20;
+      let perPage = 50;
 
       const conversation = this.conversations.find(
         (c) => c.id === conversationId
       );
       if (conversation && conversation.unread_count) {
-        perPage = conversation.unread_count + 20; // load all unread + a few extras
+        // Ensure we load all unread messages plus some context
+        const needed = conversation.unread_count + 20;
+        perPage = Math.max(perPage, needed); 
       }
 
       try {

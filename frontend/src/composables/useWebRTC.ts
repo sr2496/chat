@@ -1,13 +1,7 @@
 import { ref, shallowRef } from 'vue';
 
 // Define types for better safety
-type SignalingData = {
-    offer?: RTCSessionDescriptionInit;
-    answer?: RTCSessionDescriptionInit;
-    candidate?: RTCIceCandidateInit;
-    fromUserId: number;
-    toUserId: number;
-};
+
 
 export function useWebRTC() {
     const localStream = shallowRef<MediaStream | null>(null);
@@ -58,7 +52,7 @@ export function useWebRTC() {
         }
     };
 
-    const createOffer = async (targetUserId: number, onSignal: (type: string, data: any) => void) => {
+    const createOffer = async (onSignal: (type: string, data: any) => void) => {
         await startLocalStream();
         initializePeerConnection(onSignal);
         isCaller.value = true;

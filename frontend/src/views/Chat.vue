@@ -20,13 +20,13 @@ export default defineComponent({
     const permissionBanner = ref<InstanceType<typeof PushPermissionBanner> | null>(null);
     const { isSupported, checkSubscription, subscribe } = usePushNotifications();
 
-    // Calculate total unread count
-    const totalUnread = computed(() => {
-      return chatStore.conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
+    // Calculate count of conversations with unread messages
+    const unreadConversationsCount = computed(() => {
+      return chatStore.conversations.filter((conv) => (conv.unread_count || 0) > 0).length;
     });
 
     // Update document title with unread count
-    watch(totalUnread, (count) => {
+    watch(unreadConversationsCount, (count) => {
       if (count > 0) {
         document.title = `(${count}) ChatApp`;
       } else {

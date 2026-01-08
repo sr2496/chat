@@ -87,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, computed, onUnmounted, nextTick } from 'vue';
+import { ref, watch, computed, onUnmounted, nextTick } from 'vue';
 import UserAvatar from "./Design/UserAvatar.vue";
 
 const props = defineProps<{
