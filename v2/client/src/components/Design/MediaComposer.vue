@@ -1,0 +1,205 @@
+<template>
+    <div
+        class="absolute inset-0 flex flex-col bg-slate-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden z-50">
+
+        <!-- Header with Controls -->
+        <div
+            class="flex-shrink-0 h-16 px-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-blue-500 to-indigo-600">
+            <div class="flex items-center gap-3">
+                <!-- Close Button -->
+                <button @click="$emit('close')"
+                    class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center transition-all">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                <div class="text-white">
+                    <h3 class="font-semibold text-lg">Send Media</h3>
+                    <p class="text-xs text-white/80">{{ files.length }} file{{ files.length > 1 ? 's' : '' }}</p>
+                </div>
+            </div>
+
+            <!-- Add More Files -->
+            <label class="cursor-pointer">
+                <input type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx" class="hidden"
+                    @change="addMoreFiles" />
+                <div
+                    class="px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 flex items-center gap-2 text-white text-sm font-medium backdrop-blur-sm transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add More
+                </div>
+            </label>
+        </div>
+
+        <!-- Preview Area -->
+        <div
+            class="flex-1 flex flex-col items-center justify-center bg-gray-50/30 dark:bg-gray-900/30 p-4 overflow-hidden min-h-0">
+            <!-- Preview Container -->
+            <div
+                class="relative w-full h-full max-w-3xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                <!-- Image -->
+                <img v-if="activeFile.type === 'image' && activeFile.preview" :src="activeFile.preview"
+                    class="max-w-full max-h-full object-contain" style="max-height: min(65vh, 100%);" alt="Preview" />
+
+                <!-- Video -->
+                <video v-else-if="activeFile.type === 'video' && activeFile.preview" :src="activeFile.preview" controls
+                    class="max-w-full max-h-full object-contain rounded-2xl" style="max-height: min(65vh, 100%);" />
+
+                <!-- File Placeholder -->
+                <div v-else class="text-center px-8">
+                    <div
+                        class="w-20 h-20 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center shadow-inner">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <p class="font-semibold text-lg">{{ truncateName(activeFile.name, 30) }}</p>
+                    <p class="text-sm text-gray-500 mt-1">{{ formatFileSize(activeFile.size) }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Caption Input -->
+        <div
+            class="flex-shrink-0 h-14 px-4 flex items-center gap-3 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+            <input v-model="currentCaption" placeholder="Add a caption..."
+                class="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-800 dark:text-gray-100"
+                maxlength="2048" />
+            <span class="text-xs text-gray-400 flex-shrink-0">
+                {{ currentCaption.length }}/2048
+            </span>
+        </div>
+
+        <!-- Bottom Thumbnails & Send -->
+        <div
+            class="flex-shrink-0 h-20 px-4 bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-800 flex items-center gap-3 backdrop-blur-sm">
+
+            <!-- Thumbnails -->
+            <div class="flex-1 overflow-x-auto custom-scrollbar">
+                <div class="flex items-center gap-2 py-2">
+                    <div v-for="(file, index) in files" :key="index" @click="activeIndex = index"
+                        class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer shrink-0 transition-all duration-200 shadow-md group"
+                        :class="activeIndex === index ? 'ring-2 ring-blue-500 shadow-lg scale-110 z-10' : 'opacity-70 hover:opacity-100 hover:scale-105'">
+                        <!-- Thumbnail Content -->
+                        <img v-if="file.type === 'image' && file.preview" :src="file.preview"
+                            class="w-full h-full object-cover" alt="Thumbnail" />
+                        <video v-else-if="file.type === 'video' && file.preview" :src="file.preview"
+                            class="w-full h-full object-cover" />
+                        <div v-else
+                            class="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                            {{ file.name.split('.').pop()?.toUpperCase() || 'FILE' }}
+                        </div>
+
+                        <!-- Remove Button -->
+                        <button @click.stop="removeFile(index)"
+                            class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-20 opacity-0 group-hover:opacity-100">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Button -->
+            <button @click="$emit('send', files)"
+                class="relative flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95">
+                <svg class="w-5 h-5 rotate-90 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+
+                <!-- Count Badge -->
+                <span v-if="files.length > 1"
+                    class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-white text-blue-600 text-xs font-bold rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-gray-800">
+                    {{ files.length }}
+                </span>
+            </button>
+        </div>
+    </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue';
+
+const props = defineProps({
+    files: Array
+});
+
+const emit = defineEmits(['close', 'send', 'file-add']);
+const activeIndex = ref(0);
+
+const activeFile = computed(() => props.files[activeIndex.value] || { name: 'Unknown', preview: undefined, size: 0, type: 'file' });
+
+const currentCaption = computed({
+    get: () => props.files[activeIndex.value]?.caption || '',
+    set: (val) => {
+        const file = props.files[activeIndex.value];
+        if (file) {
+            file.caption = val;
+        }
+    }
+});
+
+const removeFile = (index) => {
+    const file = props.files[index];
+    if (!file) return;
+
+    if (file.preview) {
+        URL.revokeObjectURL(file.preview);
+    }
+
+    props.files.splice(index, 1);
+
+    if (activeIndex.value >= props.files.length) {
+        activeIndex.value = Math.max(0, props.files.length - 1);
+    }
+
+    if (props.files.length === 0) {
+        emit('close');
+    }
+};
+
+const addMoreFiles = (event) => {
+    const input = event.target;
+    if (!input.files?.length) return;
+
+    const newFiles = Array.from(input.files).map(file => ({
+        file,
+        preview: file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : undefined,
+        type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file',
+        name: file.name,
+        size: file.size,
+        caption: ''
+    }));
+
+    emit('file-add', newFiles);
+    input.value = '';
+};
+
+const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
+const truncateName = (name, length) => {
+    if (!name) return "";
+    if (name.length <= length) return name;
+    const parts = name.split('.');
+    const ext = parts.length > 1 ? '.' + parts.pop() : '';
+    return parts.join('.').slice(0, length - ext.length - 3) + '...' + ext;
+};
+</script>
