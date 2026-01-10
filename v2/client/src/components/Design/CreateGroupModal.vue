@@ -14,20 +14,21 @@
                         <div v-if="currentStep === 1" key="step-1"
                             class="absolute inset-0 flex flex-col w-full h-full bg-white dark:bg-gray-900">
                             <!-- Header -->
-                            <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 flex-shrink-0">
-                                <div class="flex items-center justify-between text-white">
+                            <div
+                                class="bg-white dark:bg-gray-900 px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800">
+                                <div class="flex items-center justify-between text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-3">
                                         <button @click="handleCloseGroupModal"
-                                            class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition">
-                                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
+                                            class="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center transition">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                                             </svg>
                                         </button>
                                         <div class="flex flex-col">
                                             <h3 class="text-xl font-bold">Add Participants</h3>
-                                            <p class="text-sm text-white/90">{{ selectedGroupUsers.length }} selected
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">{{
+                                                selectedGroupUsers.length }} selected
                                             </p>
                                         </div>
                                     </div>
@@ -138,10 +139,11 @@
                         <div v-else-if="currentStep === 2" key="step-2"
                             class="absolute inset-0 flex flex-col w-full h-full bg-white dark:bg-gray-900">
                             <!-- Header -->
-                            <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 flex-shrink-0">
-                                <div class="flex items-center gap-3 text-white">
+                            <div
+                                class="bg-white dark:bg-gray-900 px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800">
+                                <div class="flex items-center gap-3 text-gray-900 dark:text-white">
                                     <button @click="prevStep"
-                                        class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition">
+                                        class="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center transition">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -210,7 +212,7 @@
                                     <p class="text-sm text-gray-500">
                                         Creating group with <span
                                             class="font-semibold text-gray-900 dark:text-gray-100">{{
-                                            selectedGroupUsers.length
+                                                selectedGroupUsers.length
                                             }}</span>
                                         participants.
                                     </p>
@@ -323,11 +325,15 @@ const handleGroupUserScroll = () => {
 const createGroup = async () => {
     if (!groupName.value.trim() || selectedGroupUsers.value.length === 0) return;
 
-    await chatStore.createGroupConversation(
+    const newGroup = await chatStore.createGroupConversation(
         groupName.value.trim(),
         selectedGroupUsers.value.map(u => u._id),
         groupIconFile.value
     );
+
+    if (newGroup) {
+        chatStore.selectConversation(newGroup._id);
+    }
 
     handleCloseGroupModal();
 };

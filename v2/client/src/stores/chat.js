@@ -69,9 +69,11 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    const sendMessage = async (conversationId, content, type = 'text') => {
+    const sendMessage = async (conversationId, content, type = 'text', replyToId = null) => {
         try {
-            const res = await api.post('/chat/messages', { conversation_id: conversationId, content, type })
+            const payload = { conversation_id: conversationId, content, type };
+            if (replyToId) payload.reply_to = replyToId;
+            const res = await api.post('/chat/messages', payload)
             messages.value.push(res.data) // Optimistic update
             // Also need to update the last message in the conversation list
             const convIndex = conversations.value.findIndex(c => c._id === conversationId)
@@ -149,8 +151,10 @@ export const useChatStore = defineStore('chat', () => {
                 conv.unreadCount = (conv.unreadCount || 0) + 1
             } else {
                 console.log('Chat open, pushing message')
-                messages.value.push(newMessage)
-                markAsRead(msgConvId)
+                if (!messages.value.some(m => m._id === newMessage._id)) {
+                    messages.value.push(newMessage)
+                    markAsRead(msgConvId)
+                }
             }
 
             // Update details
@@ -292,6 +296,18 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    const updateGroupConversation = async (id, formData) => {
+        try {
+            const res = await api.put(`/chat/groups/${id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            return res.data;
+        } catch (err) {
+            console.error(err);
+            throw err;
+        }
+    }
+
     // Alias for compatibility
     const loadUsers = (reset = false) => fetchUsers(reset ? 1 : usersPage.value);
     const loadMoreUsers = () => {
@@ -346,6 +362,7 @@ export const useChatStore = defineStore('chat', () => {
         createGroupConversation,
         loadUsers,
         loadMoreUsers,
-        toggleReaction
+        toggleReaction,
+        updateGroupConversation
     }
 })

@@ -40,10 +40,19 @@
                     </div>
 
                     <!-- Sender Name -->
-                    <div v-if="!isSent && isGroup" class="mb-2 px-1">
+                    <div v-if="!isSent && isGroup" class="mb-1 px-1">
                         <span class="text-xs font-bold" :class="nameTextColor">
                             {{ message.sender_id?.name || 'Unknown' }}
                         </span>
+                    </div>
+
+                    <!-- Reply Context -->
+                    <div v-if="message.reply_to" @click.stop="$emit('scrollTo', message.reply_to._id)"
+                        class="mb-2 p-1.5 pl-2.5 rounded-lg border-l-[3px] text-xs flex flex-col gap-0.5 cursor-pointer hover:opacity-75 transition-opacity"
+                        :class="isSent ? 'bg-black/10 dark:bg-black/20 border-white/60' : 'bg-black/5 dark:bg-white/10 border-blue-500'">
+                        <span class="font-bold opacity-90">{{ message.reply_to.sender_id?.name || 'Unknown' }}</span>
+                        <span class="truncate opacity-80">{{ message.reply_to.content || (message.reply_to.type !==
+                            'text' ? 'Media File' : '') }}</span>
                     </div>
 
                     <!-- Text Message -->
@@ -159,6 +168,7 @@
                 <div v-if="message.reactions && message.reactions.length > 0" class="absolute -bottom-4 z-20 flex gap-1"
                     :class="isSent ? 'right-0' : 'left-0'">
                     <button v-for="(users, emoji) in groupedReactions" :key="emoji" @click.stop="toggleReaction(emoji)"
+                        :title="getReactionNames(users)"
                         class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white dark:bg-gray-700 shadow-sm border border-gray-100 dark:border-gray-600 text-[10px] hover:scale-105 transition-transform cursor-pointer">
                         <span>{{ emoji }}</span>
                         <span class="font-bold text-gray-600 dark:text-gray-300">{{ users.length }}</span>
@@ -166,12 +176,25 @@
                 </div>
             </div>
 
-            <!-- Add Reaction Action Hover -->
-            <div class="absolute top-1/2 -translate-y-1/2 transition-opacity duration-200 opacity-0 group-hover:opacity-100 z-0"
-                :class="isSent ? '-left-8' : '-right-8'">
+            <!-- Add Reaction & Reply Actions Hover -->
+            <div class="absolute top-1/2 -translate-y-1/2 transition-opacity duration-200 opacity-0 group-hover:opacity-100 z-0 flex items-center gap-2"
+                :class="isSent ? '-left-20 flex-row-reverse' : '-right-20'">
+
+                <!-- Reply Button -->
+                <button @click.stop="$emit('reply', message)"
+                    class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors shadow-sm"
+                    title="Reply">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                </button>
+
+                <!-- Reaction Trigger -->
                 <div class="relative">
                     <button @click.stop="showReactionPicker = !showReactionPicker"
-                        class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors shadow-sm">
+                        class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors shadow-sm"
+                        title="Add Reaction">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -180,7 +203,7 @@
 
                     <!-- Reaction Picker Popover -->
                     <div v-if="showReactionPicker" @mouseleave="showReactionPicker = false"
-                        class="absolute bottom-full mb-2 flex gap-1 p-1 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-200"
+                        class="absolute bottom-full mb-2 flex gap-1 p-1 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-200 z-50 w-max"
                         :class="isSent ? 'right-0' : 'left-0'">
                         <button v-for="emoji in ['👍', '❤️', '😂', '😮', '😢', '😡']" :key="emoji"
                             @click.stop="toggleReaction(emoji); showReactionPicker = false"
@@ -211,7 +234,7 @@ const props = defineProps({
     uploadProgress: Number
 });
 
-const emit = defineEmits(["cancel-upload"]);
+const emit = defineEmits(["cancel-upload", "reply", "scrollTo"]);
 const chatStore = useChatStore();
 const showReactionPicker = ref(false);
 
@@ -227,6 +250,10 @@ const groupedReactions = computed(() => {
 
 const toggleReaction = (emoji) => {
     chatStore.toggleReaction(props.message._id, emoji);
+};
+
+const getReactionNames = (users) => {
+    return users.map(u => (typeof u === 'object' ? u.name : 'Unknown')).join(', ');
 };
 
 // ... Audio ...

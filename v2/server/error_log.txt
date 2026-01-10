@@ -1,0 +1,11 @@
+ValidationError: Message validation failed: conversation_id: Cast to ObjectId failed for value "hi" (type string) at path "conversation_id" because of "BSONError"
+    at Document.invalidate (/var/www/html/chat/v2/server/node_modules/mongoose/lib/document.js:3221:32)
+    at model.$set (/var/www/html/chat/v2/server/node_modules/mongoose/lib/document.js:1466:12)
+    at model.$set (/var/www/html/chat/v2/server/node_modules/mongoose/lib/document.js:1121:16)
+    at model.Document (/var/www/html/chat/v2/server/node_modules/mongoose/lib/document.js:167:12)
+    at model.Model (/var/www/html/chat/v2/server/node_modules/mongoose/lib/model.js:123:12)
+    at new model (/var/www/html/chat/v2/server/node_modules/mongoose/lib/model.js:4755:15)
+    at /var/www/html/chat/v2/server/node_modules/mongoose/lib/model.js:2917:18
+    at Array.map (<anonymous>)
+    at Function.create (/var/www/html/chat/v2/server/node_modules/mongoose/lib/model.js:2906:30)
+    at sendMessage (/var/www/html/chat/v2/server/src/controllers/chatController.js:170:39)

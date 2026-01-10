@@ -1,86 +1,97 @@
 <template>
-    <div class="flex flex-col h-screen bg-white dark:bg-gray-900 border-x border-gray-200 dark:border-gray-800"
+    <div class="flex flex-row h-full w-full overflow-hidden bg-white dark:bg-gray-900 border-x border-gray-200 dark:border-gray-800"
         @dragover.prevent="dragOver = true" @dragenter.prevent="dragOver = true" @dragleave.prevent="handleDragLeave"
         @drop.prevent="handleDrop">
 
-        <!-- Header -->
-        <div class="shrink-0">
-            <ChatHeader @back="chatStore.currentConversation = null" />
-        </div>
+        <!-- Main Chat Column -->
+        <div class="flex-1 flex flex-col h-full min-w-0 relative">
 
-        <!-- Media Composer -->
-        <transition name="fade-slide">
-            <MediaComposer v-if="isMediaComposerOpen" :files="queuedFiles" @send="handleSendMedia"
-                @close="closeComposer" @file-add="handleFileAdd" />
-        </transition>
-
-        <!-- Messages Area -->
-        <div v-show="!isMediaComposerOpen" class="relative flex-1 min-h-0">
-            <div ref="scrollContainer" class="absolute inset-0 overflow-y-auto px-4 py-6 custom-scrollbar scroll-smooth"
-                @scroll="handleScroll">
-
-                <div v-if="messagesLoading" class="flex items-center justify-center h-full">
-                    <span class="loading loading-spinner text-blue-500"></span>
-                </div>
-
-                <div v-else class="min-h-full flex flex-col justify-end">
-                    <template v-for="(msg, index) in messages" :key="msg._id">
-                        <DateSeparator v-if="shouldShowDate(index)" :day="getMessageDay(msg.createdAt)" />
-
-                        <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg"
-                            :setMessageRef="setMessageRef" :getMessageDay="getMessageDay" />
-                    </template>
-
-                    <!-- Uploading Messages -->
-                    <template v-for="upload in uploadingMessages" :key="upload.tempId">
-                        <MessageBubble :is-group="isGroup" :is-sent="true" :message="{
-                            type: upload.type,
-                            content: upload.caption || '',
-                            attachment_url: upload.preview,
-                            file_name: upload.file.name,
-                            file_size: upload.file.size,
-                            createdAt: new Date().toISOString(),
-                            sender_id: authStore.user
-                        }" :setMessageRef="() => { }" :getMessageDay="getMessageDay" :is-uploading="true"
-                            :upload-progress="upload.progress" @cancel-upload="cancelUpload(upload)" />
-                    </template>
-                </div>
+            <!-- Header -->
+            <div class="shrink-0">
+                <ChatHeader @back="chatStore.currentConversation = null" @show-info="isInfoOpen = !isInfoOpen" />
             </div>
 
-            <!-- Drag & Drop Overlay -->
-            <transition name="fade">
-                <div v-if="dragOver"
-                    class="absolute inset-0 z-40 bg-blue-500/20 dark:bg-blue-400/20 border-4 border-dashed border-blue-600 dark:border-blue-400 rounded-2xl flex items-center justify-center pointer-events-none backdrop-blur-sm">
-                    <div class="text-center">
-                        <svg class="w-20 h-20 mx-auto mb-4 text-blue-600 dark:text-blue-400" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <p class="text-3xl font-bold text-blue-700 dark:text-blue-300">Drop to send</p>
+            <!-- Media Composer Overlay -->
+            <transition name="fade-slide">
+                <MediaComposer v-if="isMediaComposerOpen" :files="queuedFiles" @send="handleSendMedia"
+                    @close="closeComposer" @file-add="handleFileAdd" />
+            </transition>
+
+            <!-- Messages Area -->
+            <div v-show="!isMediaComposerOpen" class="relative flex-1 min-h-0">
+                <div ref="scrollContainer"
+                    class="absolute inset-0 overflow-y-auto px-4 py-6 custom-scrollbar scroll-smooth"
+                    @scroll="handleScroll">
+
+                    <div v-if="messagesLoading" class="flex items-center justify-center h-full">
+                        <span class="loading loading-spinner text-blue-500"></span>
+                    </div>
+
+                    <div v-else class="min-h-full flex flex-col justify-end">
+                        <template v-for="(msg, index) in messages" :key="msg._id">
+                            <DateSeparator v-if="shouldShowDate(index)" :day="getMessageDay(msg.createdAt)" />
+
+                            <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg"
+                                :setMessageRef="setMessageRef" :getMessageDay="getMessageDay" @reply="handleReply"
+                                @scrollTo="scrollToMessage" />
+                        </template>
+
+                        <!-- Uploading Messages -->
+                        <template v-for="upload in uploadingMessages" :key="upload.tempId">
+                            <MessageBubble :is-group="isGroup" :is-sent="true" :message="{
+                                type: upload.type,
+                                content: upload.caption || '',
+                                attachment_url: upload.preview,
+                                file_name: upload.file.name,
+                                file_size: upload.file.size,
+                                createdAt: new Date().toISOString(),
+                                sender_id: authStore.user
+                            }" :setMessageRef="() => { }" :getMessageDay="getMessageDay" :is-uploading="true"
+                                :upload-progress="upload.progress" @cancel-upload="cancelUpload(upload)" />
+                        </template>
                     </div>
                 </div>
-            </transition>
 
-            <!-- Go to Bottom Button -->
-            <transition name="fade">
-                <button v-if="showScrollBottom" @click="scrollToBottom"
-                    class="fixed bottom-24 right-6 z-50 w-10 h-10 rounded-full bg-white dark:bg-gray-700 shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
-                    <span v-if="unreadCount > 0"
-                        class="absolute -top-2 -left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm min-w-[18px] text-center">
-                        {{ unreadCount }}
-                    </span>
-                </button>
-            </transition>
+                <!-- Drag & Drop Overlay -->
+                <transition name="fade">
+                    <div v-if="dragOver"
+                        class="absolute inset-0 z-40 bg-blue-500/20 dark:bg-blue-400/20 border-4 border-dashed border-blue-600 dark:border-blue-400 rounded-2xl flex items-center justify-center pointer-events-none backdrop-blur-sm">
+                        <div class="text-center">
+                            <svg class="w-20 h-20 mx-auto mb-4 text-blue-600 dark:text-blue-400" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <p class="text-3xl font-bold text-blue-700 dark:text-blue-300">Drop to send</p>
+                        </div>
+                    </div>
+                </transition>
+
+                <!-- Go to Bottom Button -->
+                <transition name="fade">
+                    <button v-if="showScrollBottom" @click="scrollToBottom"
+                        class="fixed bottom-24 right-6 z-50 w-10 h-10 rounded-full bg-white dark:bg-gray-700 shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        <span v-if="unreadCount > 0"
+                            class="absolute -top-2 -left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm min-w-[18px] text-center">
+                            {{ unreadCount }}
+                        </span>
+                    </button>
+                </transition>
+            </div>
+
+            <!-- Input Area -->
+            <MessageInput v-show="!isMediaComposerOpen" ref="messageInputRef" @send-text="sendText"
+                @queue-files="handleQueueFiles" :replyingTo="replyingTo" @cancel-reply="cancelReply" />
+
         </div>
 
-        <!-- Input Area -->
-        <MessageInput v-show="!isMediaComposerOpen" ref="messageInputRef" @send-text="sendText"
-            @queue-files="handleQueueFiles" />
+        <!-- Info Sidebar -->
+        <ChatInfo :isOpen="isInfoOpen" :conversation="chatStore.currentConversation" @close="isInfoOpen = false" />
+
     </div>
 </template>
 
@@ -94,6 +105,9 @@ import MessageBubble from "./MessageBubble.vue";
 import MessageInput from "./MessageInput.vue";
 import DateSeparator from "./DateSeparator.vue";
 import MediaComposer from "./MediaComposer.vue";
+import ChatInfo from "./ChatInfo.vue";
+
+const isInfoOpen = ref(false);
 
 const chatStore = useChatStore();
 const authStore = useAuthStore();
@@ -167,9 +181,42 @@ const handleScroll = () => {
     showScrollBottom.value = !isAtBottom;
 };
 
+const replyingTo = ref(null);
+
+const handleReply = (msg) => {
+    replyingTo.value = {
+        id: msg._id,
+        senderName: msg.sender_id.name,
+        body: msg.content || 'Media'
+    };
+    if (messageInputRef.value) messageInputRef.value.focusInput();
+};
+
+const scrollToMessage = (messageId) => {
+    const el = messageRefs.get(messageId);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Optional highlight effect
+        const bubble = el.querySelector('div.rounded-2xl');
+        if (bubble) {
+            bubble.classList.add('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-blue-400', 'transition-all', 'duration-300');
+            setTimeout(() => {
+                bubble.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-blue-400');
+            }, 5000);
+        }
+    }
+};
+
+const cancelReply = () => {
+    replyingTo.value = null;
+};
+
 const sendText = async (text) => {
-    await chatStore.sendMessage(text);
-    scrollToBottom();
+    if (chatStore.currentConversation) {
+        await chatStore.sendMessage(chatStore.currentConversation._id, text, 'text', replyingTo.value?.id);
+        replyingTo.value = null;
+        scrollToBottom();
+    }
 };
 
 // --- Media Logic ---

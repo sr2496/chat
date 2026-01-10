@@ -91,16 +91,17 @@ watch(() => props.isOpen, (isOpen) => {
                 class="absolute left-0 top-0 h-full w-full max-w-sm bg-white dark:bg-gray-900 shadow-2xl flex flex-col transform transition-transform duration-300">
 
                 <!-- Header -->
-                <div class="bg-indigo-600 px-6 py-4 flex-shrink-0">
+                <div
+                    class="bg-white dark:bg-gray-900 px-6 py-4 flex-shrink-0 border-b border-gray-200 dark:border-gray-800">
                     <div class="flex items-center gap-3">
                         <button @click="handleClose"
-                            class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition">
+                            class="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center transition">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                         </button>
-                        <h3 class="text-xl font-bold text-white">New Message</h3>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">New Message</h3>
                     </div>
                 </div>
 

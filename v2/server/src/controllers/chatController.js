@@ -1,6 +1,7 @@
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const fs = require('fs');
 
 // @desc    Get all conversations for the current user
 // @route   GET /api/chat/conversations
@@ -113,6 +114,11 @@ const getMessages = async (req, res) => {
 
         const messages = await Message.find({ conversation_id: id })
             .populate('sender_id', 'name avatar')
+            .populate({
+                path: 'reply_to',
+                populate: { path: 'sender_id', select: 'name' }
+            })
+            .populate('reactions.user_id', 'name')
             .sort({ createdAt: -1 }) // Newest first for pagination
             .skip(skip)
             .limit(limit);
@@ -136,14 +142,25 @@ const getMessages = async (req, res) => {
 // @route   POST /api/chat/messages
 // @access  Private
 const sendMessage = async (req, res) => {
-    const { conversation_id, content, type } = req.body;
+    const { conversation_id, content, type, reply_to } = req.body;
+
+    if (!conversation_id || conversation_id === 'undefined' || conversation_id === 'null') {
+        console.error('sendMessage missing conversation_id', req.body);
+        return res.status(400).json({ message: 'Conversation ID is required' });
+    }
+
     let messageData = {
         conversation_id,
         sender_id: req.user._id,
         content: content || '',
         type: type || 'text',
+        type: type || 'text',
         read_by: [req.user._id]
     };
+
+    if (reply_to && reply_to !== 'null' && reply_to !== 'undefined') {
+        messageData.reply_to = reply_to;
+    }
 
     if (req.file) {
         messageData.attachment_url = `/uploads/${req.file.filename}`;
@@ -163,20 +180,35 @@ const sendMessage = async (req, res) => {
         const message = await Message.create(messageData);
 
         // Update conversation's last message
-        await Conversation.findByIdAndUpdate(conversation_id, {
+        const conversation = await Conversation.findByIdAndUpdate(conversation_id, {
             last_message: message._id
         });
 
         const fullMessage = await Message.findById(message._id)
-            .populate('sender_id', 'name avatar');
+            .populate('sender_id', 'name avatar')
+            .populate({
+                path: 'reply_to',
+                populate: { path: 'sender_id', select: 'name' }
+            })
+            .populate('reactions.user_id', 'name');
 
         // Socket.io integration
         req.io.to(conversation_id).emit('message_received', fullMessage);
 
+        // Emit to each participant to ensure ChatList updates
+        if (conversation && conversation.participants) {
+            conversation.participants.forEach(userId => {
+                const uid = userId.toString();
+                if (uid === req.user._id.toString()) return;
+                req.io.to(uid).emit('message_received', fullMessage);
+            });
+        }
+
         res.status(201).json(fullMessage);
     } catch (error) {
+        fs.writeFileSync('error_log.txt', error.stack || error.message);
         console.error(error);
-        res.status(500).json({ message: 'Server Error' });
+        res.status(500).json({ message: error.message, stack: error.stack });
     }
 }
 
@@ -244,9 +276,30 @@ const createGroupConversation = async (req, res) => {
 
         const conversation = await Conversation.create(conversationData);
 
+        // Create System Message
+        const systemMessage = await Message.create({
+            conversation_id: conversation._id,
+            sender_id: req.user._id,
+            content: `${req.user.name} created the group "${name}"`,
+            type: 'system',
+            read_by: [req.user._id]
+        });
+
+        conversation.last_message = systemMessage._id;
+        await conversation.save();
+
         const fullConversation = await Conversation.findById(conversation._id)
             .populate('participants', 'name email avatar online')
-            .populate('admins', 'name email');
+            .populate('admins', 'name email')
+            .populate('last_message');
+
+        const fullSystemMessage = await Message.findById(systemMessage._id)
+            .populate('sender_id', 'name avatar');
+
+        // Notify all participants
+        fullConversation.participants.forEach(p => {
+            req.io.to(p._id.toString()).emit('message_received', fullSystemMessage);
+        });
 
         res.status(201).json(fullConversation);
 
@@ -282,6 +335,7 @@ const toggleMessageReaction = async (req, res) => {
         }
 
         await message.save();
+        await message.populate('reactions.user_id', 'name');
 
         req.io.to(message.conversation_id.toString()).emit('message_reaction_update', {
             messageId: message._id,
@@ -296,4 +350,76 @@ const toggleMessageReaction = async (req, res) => {
     }
 }
 
-module.exports = { getConversations, createOrGetConversation, getMessages, sendMessage, markAsRead, createGroupConversation, toggleMessageReaction };
+const updateGroup = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, participants: newParticipantsStr } = req.body;
+
+        let newParticipants = [];
+        if (newParticipantsStr) {
+            try {
+                newParticipants = JSON.parse(newParticipantsStr);
+            } catch (e) {
+                if (typeof newParticipantsStr === 'string')
+                    newParticipants = newParticipantsStr.split(',');
+                else newParticipants = [newParticipantsStr];
+            }
+        }
+
+        const conversation = await Conversation.findById(id);
+        if (!conversation) return res.status(404).json({ message: 'Group not found' });
+        if (conversation.type !== 'group') return res.status(400).json({ message: 'Not a group' });
+
+        const isAdmin = conversation.admins.some(adminId => adminId.toString() === req.user._id.toString());
+        if (!isAdmin) return res.status(403).json({ message: 'Only admins can update group info' });
+
+        if (name) conversation.name = name;
+        if (req.file) conversation.display_avatar = `/uploads/${req.file.filename}`;
+
+        if (newParticipants && newParticipants.length > 0) {
+            const usersToAdd = newParticipants.filter(uid => !conversation.participants.includes(uid));
+            if (usersToAdd.length > 0) {
+                conversation.participants.push(...usersToAdd);
+
+                const addedUserNames = await User.find({ _id: { $in: usersToAdd } }).select('name');
+                const namesStr = addedUserNames.map(u => u.name).join(', ');
+
+                const systemMessage = await Message.create({
+                    conversation_id: conversation._id,
+                    sender_id: req.user._id,
+                    content: `${req.user.name} added ${namesStr}`,
+                    type: 'system',
+                    read_by: [req.user._id]
+                });
+                conversation.last_message = systemMessage._id;
+
+                // Populate system message sender
+                const fullSystemMessage = await Message.findById(systemMessage._id).populate('sender_id', 'name avatar');
+
+                req.io.to(id).emit('message_received', fullSystemMessage);
+            }
+        }
+
+        await conversation.save();
+
+        const fullConversation = await Conversation.findById(id)
+            .populate('participants', 'name email avatar online')
+            .populate('admins', 'name email')
+            .populate('last_message');
+
+        // Notify all participants
+        fullConversation.participants.forEach(p => {
+            req.io.to(p._id.toString()).emit('conversation_updated', fullConversation);
+            // Also ensure new participants get the "message_received" event if they weren't in the room yet
+            // The loop above emits to user-specific room, so they WILL get it.
+        });
+
+        res.json(fullConversation);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Update failed' });
+    }
+};
+
+module.exports = { getConversations, createOrGetConversation, getMessages, sendMessage, markAsRead, createGroupConversation, toggleMessageReaction, updateGroup };

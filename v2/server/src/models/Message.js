@@ -9,12 +9,13 @@ const messageSchema = new mongoose.Schema({
     conversation_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
     sender_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String },
-    type: { type: String, enum: ['text', 'image', 'audio', 'video', 'file'], default: 'text' },
+    type: { type: String, enum: ['text', 'image', 'audio', 'video', 'file', 'system'], default: 'text' },
     attachment_url: { type: String },
     file_name: { type: String },
     file_size: { type: Number },
     read_by: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    reactions: [reactionSchema]
+    reactions: [reactionSchema],
+    reply_to: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' }
 }, {
     timestamps: true
 });

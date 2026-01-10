@@ -158,7 +158,7 @@ watch(loadMoreTrigger, (el) => {
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline mb-1">
                             <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">{{ getDisplayName(conv)
-                                }}
+                            }}
                             </h3>
                             <span class="text-xs text-gray-500">{{ formatTime(conv.last_message?.createdAt ||
                                 conv.updatedAt) }}</span>
