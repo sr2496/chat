@@ -57,4 +57,33 @@ const getMe = async (req, res) => {
     res.status(200).json(req.user);
 };
 
-module.exports = { registerUser, loginUser, getMe };
+const updateProfile = async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+        user.name = req.body.name || user.name;
+        user.email = req.body.email || user.email;
+
+        if (req.body.password) {
+            user.password = req.body.password;
+        }
+
+        if (req.file) {
+            user.avatar = `/uploads/${req.file.filename}`;
+        }
+
+        const updatedUser = await user.save();
+
+        res.json({
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            avatar: updatedUser.avatar, // Updated avatar
+            token: generateToken(updatedUser._id),
+        });
+    } else {
+        res.status(404).json({ message: 'User not found' });
+    }
+};
+
+module.exports = { registerUser, loginUser, getMe, updateProfile };

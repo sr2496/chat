@@ -2,6 +2,7 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const fs = require('fs');
+const { sendNotification } = require('./pushController');
 
 // @desc    Get all conversations for the current user
 // @route   GET /api/chat/conversations
@@ -201,6 +202,14 @@ const sendMessage = async (req, res) => {
                 const uid = userId.toString();
                 if (uid === req.user._id.toString()) return;
                 req.io.to(uid).emit('message_received', fullMessage);
+
+                // Send Push Notification
+                sendNotification(uid, {
+                    title: `New message from ${req.user.name}`,
+                    body: content || (type === 'image' ? 'Sent an image' : 'Sent a file'),
+                    url: `/chat/${conversation_id}`,
+                    icon: '/vite.svg' // or user avatar
+                });
             });
         }
 
@@ -422,4 +431,70 @@ const updateGroup = async (req, res) => {
     }
 };
 
-module.exports = { getConversations, createOrGetConversation, getMessages, sendMessage, markAsRead, createGroupConversation, toggleMessageReaction, updateGroup };
+const leaveGroup = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const conversation = await Conversation.findById(id);
+
+        if (!conversation) {
+            return res.status(404).json({ message: 'Conversation not found' });
+        }
+
+        if (conversation.type !== 'group') {
+            return res.status(400).json({ message: 'Not a group' });
+        }
+
+        // Check if user is participant
+        if (!conversation.participants.includes(req.user._id)) {
+            return res.status(400).json({ message: 'You are not in this group' });
+        }
+
+        // Remove user from participants
+        conversation.participants = conversation.participants.filter(
+            (p) => p.toString() !== req.user._id.toString()
+        );
+
+        // Remove from admins if present
+        if (conversation.admins) {
+            conversation.admins = conversation.admins.filter(
+                (a) => a.toString() !== req.user._id.toString()
+            );
+        }
+
+        // Create system message
+        const systemMessage = await Message.create({
+            conversation_id: conversation._id,
+            sender_id: req.user._id,
+            content: `${req.user.name} left the group`,
+            type: 'system',
+            read_by: []
+        });
+
+        conversation.last_message = systemMessage._id;
+
+        await conversation.save();
+
+        // Populate system message sender
+        const fullSystemMessage = await Message.findById(systemMessage._id).populate('sender_id', 'name avatar');
+
+        // Notify others
+        req.io.to(id).emit('message_received', fullSystemMessage);
+
+        const fullConversation = await Conversation.findById(id)
+            .populate('participants', 'name email avatar online')
+            .populate('admins', 'name email')
+            .populate('last_message');
+
+        if (fullConversation) {
+            req.io.to(id).emit('conversation_updated', fullConversation);
+        }
+
+        res.status(200).json({ message: 'Left group successfully' });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+module.exports = { getConversations, createOrGetConversation, getMessages, sendMessage, markAsRead, createGroupConversation, toggleMessageReaction, updateGroup, leaveGroup };

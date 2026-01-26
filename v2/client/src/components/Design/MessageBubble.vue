@@ -174,23 +174,49 @@
                         <span class="font-bold text-gray-600 dark:text-gray-300">{{ users.length }}</span>
                     </button>
                 </div>
+
+                <!-- Menu Button (Version 1 Style) -->
+                <div class="absolute top-2 right-2 z-30">
+                    <button @click.stop="showMenu = !showMenu"
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-700 backdrop-blur-sm shadow-md border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-100 opacity-0 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-gray-600 hover:scale-110 transition-all duration-200">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M6.7 9.3a1 1 0 011.4 0L12 13.17l3.9-3.88a1 1 0 111.4 1.42l-4.6 4.6a1 1 0 01-1.4 0l-4.6-4.6a1 1 0 010-1.42z" />
+                        </svg>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div v-if="showMenu" @click.stop="showMenu = false" class="fixed inset-0 z-40" aria-hidden="true">
+                    </div> <!-- Overlay to close -->
+
+                    <div v-if="showMenu"
+                        class="absolute top-7 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
+                        :class="isSent ? 'right-0 origin-top-right' : 'left-0 origin-top-left'">
+                        <button @click.stop="$emit('reply', message); showMenu = false"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Reply
+                        </button>
+                        <button @click.stop="$emit('create-action', message); showMenu = false"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            Create Action
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Add Reaction & Reply Actions Hover -->
+            <!-- Add Reaction Hover (Sidebar) -->
             <div class="absolute top-1/2 -translate-y-1/2 transition-opacity duration-200 opacity-0 group-hover:opacity-100 z-0 flex items-center gap-2"
-                :class="isSent ? '-left-20 flex-row-reverse' : '-right-20'">
+                :class="isSent ? '-left-10 flex-row-reverse' : '-right-10'">
 
-                <!-- Reply Button -->
-                <button @click.stop="$emit('reply', message)"
-                    class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors shadow-sm"
-                    title="Reply">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                </button>
-
-                <!-- Reaction Trigger -->
+                <!-- Reaction Trigger Only -->
                 <div class="relative">
                     <button @click.stop="showReactionPicker = !showReactionPicker"
                         class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors shadow-sm"
@@ -237,6 +263,7 @@ const props = defineProps({
 const emit = defineEmits(["cancel-upload", "reply", "scrollTo"]);
 const chatStore = useChatStore();
 const showReactionPicker = ref(false);
+const showMenu = ref(false);
 
 const groupedReactions = computed(() => {
     if (!props.message.reactions) return {};

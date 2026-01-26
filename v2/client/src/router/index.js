@@ -20,6 +20,11 @@ const router = createRouter({
             path: '/',
             name: 'chat',
             component: Chat
+        },
+        {
+            path: '/actions',
+            name: 'actions',
+            component: Chat
         }
     ]
 })

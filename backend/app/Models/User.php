@@ -61,11 +61,6 @@ class User extends Authenticatable
         return $this->hasMany(Message::class, 'sender_id');
     }
 
-    public function isOnline()
-    {
-        return Cache::has('user-is-online-' . $this->id);
-    }
-
     public function isNotificationMuted()
     {
         return $this->notification_muted_until && $this->notification_muted_until->isFuture();

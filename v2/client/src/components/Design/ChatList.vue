@@ -5,12 +5,24 @@ import { useChatStore } from '../../stores/chat'
 import UserAvatar from './UserAvatar.vue'
 import NewChatModal from './NewChatModal.vue'
 import CreateGroupModal from './CreateGroupModal.vue'
+import { requestNotificationPermission, registerPushSubscription } from '../../utils/pushManager'
 
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const searchQuery = ref('')
 const isNewChatOpen = ref(false)
 const isCreateGroupOpen = ref(false)
+const showNotificationButton = ref(false)
+
+const enableNotifications = async () => {
+    try {
+        await requestNotificationPermission()
+        await registerPushSubscription()
+        showNotificationButton.value = false
+    } catch (e) {
+        console.error(e)
+    }
+}
 
 
 const getDisplayName = (conv) => {
@@ -69,6 +81,13 @@ onMounted(async () => {
     if (authStore.user) {
         chatStore.initializeSocket(authStore.user)
     }
+
+    if ('Notification' in window && Notification.permission === 'default') {
+        showNotificationButton.value = true
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+        // Maybe ensure subscription exists? But that's handled by app logic or we assume it's good
+    }
+
     // Initial fetch
     await chatStore.fetchConversations()
 
@@ -85,25 +104,56 @@ watch(loadMoreTrigger, (el) => {
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-        <!-- Header -->
+    <div class="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+        <!-- Desktop Header (V1 Style) -->
         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Chats</h2>
-                <div class="flex gap-2">
-                    <button @click="isCreateGroupOpen = true" title="New Group"
-                        class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Chats</h2>
+                    <button v-if="showNotificationButton" @click="enableNotifications" title="Enable Notifications"
+                        class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 border border-blue-200 dark:border-blue-800 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <!-- New Chat Button (Blue Gradient) -->
+                    <button @click="isNewChatOpen = true"
+                        class="hidden sm:flex px-3 py-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-all duration-200 items-center gap-2 font-medium text-xs hover:-translate-y-0.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>New Chat</span>
+                    </button>
+                    <!-- Mobile New Chat -->
+                    <button @click="isNewChatOpen = true"
+                        class="sm:hidden p-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+
+                    <!-- New Group Button (Green Gradient) -->
+                    <button @click="isCreateGroupOpen = true"
+                        class="hidden sm:flex px-3 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md hover:shadow-lg transition-all duration-200 items-center gap-2 font-medium text-xs hover:-translate-y-0.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>New Group</span>
+                    </button>
+                    <!-- Mobile New Group -->
+                    <button @click="isCreateGroupOpen = true"
+                        class="sm:hidden p-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                     </button>
-                    <button @click="isNewChatOpen = true" title="New Chat"
-                        class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
+
                     <NewChatModal :isOpen="isNewChatOpen" @close="isNewChatOpen = false" />
                     <CreateGroupModal :isOpen="isCreateGroupOpen" @close="isCreateGroupOpen = false" />
                 </div>
@@ -112,7 +162,7 @@ watch(loadMoreTrigger, (el) => {
             <!-- Search -->
             <div class="relative">
                 <input v-model="searchQuery" type="text" placeholder="Search chats..."
-                    class="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-600 transition-colors shadow-inner" />
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none"
                     stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -122,17 +172,18 @@ watch(loadMoreTrigger, (el) => {
         </div>
 
         <!-- List -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar relative">
+        <div class="flex-1 overflow-y-auto custom-scrollbar relative bg-gray-50 dark:bg-gray-800/50">
             <!-- Loading State -->
             <div v-if="chatStore.loading" class="flex flex-col items-center justify-center py-10 text-gray-400">
-                <svg class="animate-spin h-8 w-8 mb-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none"
-                    viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                    </path>
-                </svg>
-                <span>Loading conversations...</span>
+                <div class="space-y-4 w-full px-4">
+                    <div v-for="n in 5" :key="n" class="flex items-center gap-4 animate-pulse">
+                        <div class="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                            <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Empty State -->
@@ -142,32 +193,34 @@ watch(loadMoreTrigger, (el) => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                         d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
-                <p>No conversations found</p>
+                <p class="font-medium">No chats found</p>
                 <p class="text-xs mt-2 opacity-70">Start a new chat to see it here</p>
             </div>
 
             <!-- Conversation Items -->
-            <div v-else>
+            <div v-else class="p-2 space-y-1">
                 <div v-for="conv in filteredConversations" :key="conv._id"
-                    class="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
-                    :class="{ 'bg-blue-50 dark:bg-blue-900/20': chatStore.currentConversation?._id === conv._id }"
+                    class="flex items-center gap-4 p-3 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700/80 transition-colors group"
+                    :class="{ 'bg-blue-500/10 ring-1 ring-blue-500/30': chatStore.currentConversation?._id === conv._id }"
                     @click="selectChat(conv)">
                     <UserAvatar :name="getDisplayName(conv)" :avatar="getDisplayAvatar(conv)"
                         :is-online="getIsOnline(conv)" :show-online="conv.type === 'private'" size="lg" />
 
                     <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-baseline mb-1">
-                            <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">{{ getDisplayName(conv)
-                            }}
-                            </h3>
-                            <span class="text-xs text-gray-500">{{ formatTime(conv.last_message?.createdAt ||
-                                conv.updatedAt) }}</span>
+                        <div class="flex justify-between items-center mb-1">
+                            <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate text-base">{{
+                                getDisplayName(conv) }}</h3>
+                            <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{{
+                                formatTime(conv.last_message?.createdAt || conv.updatedAt) }}</span>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ getLastMessage(conv) }}</p>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <p
+                                class="text-sm text-gray-500 dark:text-gray-400 truncate pr-2 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                                {{ getLastMessage(conv) }}
+                            </p>
                             <span v-if="conv.unreadCount > 0"
-                                class="ml-2 px-2 py-0.5 text-xs font-bold text-white bg-blue-500 rounded-full min-w-[20px] text-center">
-                                {{ conv.unreadCount }}
+                                class="ml-2 px-2 py-0.5 text-xs font-bold text-white bg-blue-500 rounded-full min-w-[20px] text-center shadow-sm">
+                                {{ conv.unreadCount > 99 ? '99+' : conv.unreadCount }}
                             </span>
                         </div>
                     </div>

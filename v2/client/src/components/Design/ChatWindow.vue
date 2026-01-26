@@ -33,7 +33,7 @@
 
                             <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg"
                                 :setMessageRef="setMessageRef" :getMessageDay="getMessageDay" @reply="handleReply"
-                                @scrollTo="scrollToMessage" />
+                                @scrollTo="scrollToMessage" @create-action="openCreateAction" />
                         </template>
 
                         <!-- Uploading Messages -->
@@ -92,6 +92,11 @@
         <!-- Info Sidebar -->
         <ChatInfo :isOpen="isInfoOpen" :conversation="chatStore.currentConversation" @close="isInfoOpen = false" />
 
+        <!-- Action Modal -->
+        <CreateActionModal :isOpen="isActionModalOpen" :conversation="chatStore.currentConversation"
+            :message-id="actionMessageId" :initial-title="actionInitialTitle" @close="closeActionModal"
+            @created="handleActionCreated" />
+
     </div>
 </template>
 
@@ -106,8 +111,12 @@ import MessageInput from "./MessageInput.vue";
 import DateSeparator from "./DateSeparator.vue";
 import MediaComposer from "./MediaComposer.vue";
 import ChatInfo from "./ChatInfo.vue";
+import CreateActionModal from "../Actions/CreateActionModal.vue";
 
 const isInfoOpen = ref(false);
+const isActionModalOpen = ref(false);
+const actionMessageId = ref(null);
+const actionInitialTitle = ref('');
 
 const chatStore = useChatStore();
 const authStore = useAuthStore();
@@ -349,6 +358,23 @@ watch(() => messages.value, () => {
         scrollToBottom();
     }
 }, { deep: true });
+
+const openCreateAction = (message) => {
+    actionMessageId.value = message._id;
+    actionInitialTitle.value = message.content ? message.content.substring(0, 50) + (message.content.length > 50 ? '...' : '') : 'Follow up on media';
+    isActionModalOpen.value = true;
+};
+
+const closeActionModal = () => {
+    isActionModalOpen.value = false;
+    actionMessageId.value = null;
+    actionInitialTitle.value = '';
+};
+
+const handleActionCreated = () => {
+    // Optional: Show toast
+    console.log('Action created');
+};
 
 onMounted(() => {
     scrollToBottom();

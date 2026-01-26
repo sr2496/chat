@@ -22,7 +22,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/api/auth', authRoutes);
 app.use('/uploads', express.static('uploads'));
 
 // Socket.io Setup
@@ -45,17 +44,11 @@ app.use((req, res, next) => {
 });
 
 // API Routes
-app.use('/api/auth', require('./src/routes/authRoutes'));
+app.use('/api/auth', authRoutes);
 app.use('/api/chat', require('./src/routes/chatRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
-
-// 404 Handler
-
-// Make io accessible to our router
-app.use((req, res, next) => {
-    req.io = io;
-    next();
-});
+app.use('/api/push', require('./src/routes/pushRoutes'));
+app.use('/api/actions', require('./src/routes/actionRoutes'));
 
 // Socket Logic
 require('./src/socket/socketHandler')(io);

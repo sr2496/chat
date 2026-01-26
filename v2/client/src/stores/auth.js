@@ -44,5 +44,24 @@ export const useAuthStore = defineStore('auth', () => {
         router.push('/login')
     }
 
-    return { user, token, login, logout, register }
+    const updateProfile = async (formData) => {
+        try {
+            const res = await api.post('/auth/profile', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            })
+            user.value = res.data
+            // If token is rotated
+            if (res.data.token) {
+                token.value = res.data.token
+                localStorage.setItem('token', res.data.token)
+            }
+            localStorage.setItem('user', JSON.stringify(res.data))
+            return { success: true, data: res.data }
+        } catch (error) {
+            console.error(error)
+            return { success: false, message: error.response?.data?.message || 'Update failed' }
+        }
+    }
+
+    return { user, token, login, logout, register, updateProfile }
 })

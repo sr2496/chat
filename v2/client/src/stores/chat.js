@@ -18,6 +18,7 @@ export const useChatStore = defineStore('chat', () => {
     const messagesPage = ref(1)
     const hasMoreMessages = ref(false)
     const isTyping = ref(false)
+    const pendingNotification = ref(null)
     const typingTimeout = ref(null)
 
     // Typing indicator from other users
@@ -149,6 +150,16 @@ export const useChatStore = defineStore('chat', () => {
             if (!isCurrentChat) {
                 console.log('Updating unread count for', conv.name)
                 conv.unreadCount = (conv.unreadCount || 0) + 1
+                // Trigger notification
+                pendingNotification.value = {
+                    id: newMessage._id,
+                    conversationId: conv._id,
+                    senderName: newMessage.sender_id?.name || 'Unknown',
+                    avatar: newMessage.sender_id?.avatar,
+                    isOnline: true, // simplified
+                    message: newMessage.type === 'text' ? newMessage.content : (newMessage.type === 'image' ? 'Sent an image' : 'Sent a file'),
+                    conversationName: conv.type === 'group' ? conv.name : ''
+                }
             } else {
                 console.log('Chat open, pushing message')
                 if (!messages.value.some(m => m._id === newMessage._id)) {
@@ -183,6 +194,69 @@ export const useChatStore = defineStore('chat', () => {
                 if (conv) conv.unreadCount = 0
             }
         })
+
+        socket.value.on('user_online', (userId) => {
+            // Update conversations
+            conversations.value.forEach(conv => {
+                if (conv.participants) {
+                    const p = conv.participants.find(p => p._id === userId);
+                    if (p) p.online = true;
+                }
+            });
+            // Update current conversation
+            if (currentConversation.value && currentConversation.value.participants) {
+                const p = currentConversation.value.participants.find(p => p._id === userId);
+                if (p) p.online = true;
+            }
+            // Update users list (for NewChat)
+            const u = users.value.find(u => u._id === userId);
+            if (u) u.online = true;
+        });
+
+        socket.value.on('user_offline', (userId) => {
+            // Update conversations
+            conversations.value.forEach(conv => {
+                if (conv.participants) {
+                    const p = conv.participants.find(p => p._id === userId);
+                    if (p) p.online = false;
+                }
+            });
+            // Update current conversation
+            if (currentConversation.value && currentConversation.value.participants) {
+                const p = currentConversation.value.participants.find(p => p._id === userId);
+                if (p) p.online = false;
+            }
+            // Update users list (for NewChat)
+            const u = users.value.find(u => u._id === userId);
+            if (u) u.online = false;
+        });
+
+        // Action Events
+        socket.value.on('new_action', (action) => {
+            import('./actions').then(({ useActionStore }) => {
+                const actionStore = useActionStore();
+                actionStore.handleSocketAction(action, 'new');
+            });
+        });
+
+        socket.value.on('action_updated', (action) => {
+            import('./actions').then(({ useActionStore }) => {
+                const actionStore = useActionStore();
+                actionStore.handleSocketAction(action, 'update');
+            });
+        });
+
+        socket.value.on('action_deleted', (actionId) => {
+            import('./actions').then(({ useActionStore }) => {
+                const actionStore = useActionStore();
+                actionStore.handleSocketAction(actionId, 'delete');
+            });
+        });
+
+        socket.value.on('action_notification', (notification) => {
+            console.log('Received action notification', notification);
+            pendingNotification.value = notification;
+        });
     }
 
     const selectConversation = async (conversationId) => {
@@ -329,6 +403,24 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    const leaveGroup = async (conversationId) => {
+        try {
+            await api.post(`/chat/groups/${conversationId}/leave`);
+            // Remove from local list
+            const idx = conversations.value.findIndex(c => c._id === conversationId);
+            if (idx !== -1) {
+                conversations.value.splice(idx, 1);
+            }
+            if (currentConversation.value && currentConversation.value._id === conversationId) {
+                currentConversation.value = null;
+                messages.value = [];
+            }
+        } catch (err) {
+            console.error(err);
+            throw err;
+        }
+    }
+
     return {
         conversations,
         currentConversation,
@@ -363,6 +455,8 @@ export const useChatStore = defineStore('chat', () => {
         loadUsers,
         loadMoreUsers,
         toggleReaction,
-        updateGroupConversation
+        updateGroupConversation,
+        leaveGroup,
+        pendingNotification
     }
 })

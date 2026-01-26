@@ -108,29 +108,45 @@ const onAddParticipants = async (users) => {
         <div class="flex-1 overflow-y-auto custom-scrollbar">
             <!-- Profile Info -->
             <div class="p-8 flex flex-col items-center border-b border-gray-100 dark:border-gray-700">
-                <div class="relative group mb-4">
-                    <UserAvatar :avatar="displayAvatar" :name="displayName" size="custom"
-                        class="w-32 h-32 text-4xl shadow-2xl" :is-online="onlineStatus" :show-online="!isGroup" />
+                <div class="relative group mb-6">
+                    <div
+                        class="relative rounded-full ring-4 ring-gray-100 dark:ring-gray-700 shadow-xl overflow-hidden w-36 h-36">
+                        <UserAvatar :avatar="displayAvatar" :name="displayName" size="custom"
+                            class="w-full h-full text-5xl" :is-online="onlineStatus" :show-online="!isGroup" />
 
-                    <!-- Admin Avatar Update Overlay -->
-                    <div v-if="isGroup && isAdmin(authStore.user?._id)" @click="triggerFileInput"
-                        class="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity z-10 w-32 h-32 backdrop-blur-[2px]">
-                        <svg class="w-8 h-8 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span
-                            class="text-[10px] font-extrabold text-white text-center px-2 uppercase tracking-wide">Change
-                            Photo</span>
+                        <!-- Admin Avatar Update Overlay -->
+                        <div v-if="isGroup && isAdmin(authStore.user?._id)" @click="triggerFileInput"
+                            class="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all duration-300 backdrop-blur-sm">
+                            <div class="p-3 bg-white/20 rounded-full mb-1">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                            <span
+                                class="text-xs font-bold text-white tracking-wider uppercase drop-shadow-md">Edit</span>
+                        </div>
                     </div>
+
                     <input type="file" ref="fileInput" class="hidden" @change="handleAvatarChange" accept="image/*" />
+
+                    <!-- Online Status Dot (Outside container for better visibility if needed, or stick to UserAvatar's internal one) -->
+                    <!-- We rely on UserAvatar for the dot usually, but for custom size we might need to handle it if UserAvatar doesn't scale perfectly with 'custom' size for the dot position. 
+                         However, looking at UserAvatar.vue, it uses size classes. 'custom' isn't explicitly handled for the dot size/pos, so the dot might be small/misplaced. 
+                         Let's assume UserAvatar handles 'custom' or just hides it if logic fails. 
+                         For Group Info, usually online status isn't shown on the large avatar for groups. 
+                    -->
                 </div>
 
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white text-center break-words w-full px-4">{{
-                    displayName }}</h2>
-                <p class="text-gray-500 text-sm mt-1 font-medium">{{ displayStatus }}</p>
+                <h2
+                    class="text-2xl font-bold text-gray-900 dark:text-white text-center break-words w-full px-4 leading-tight">
+                    {{
+                        displayName }}</h2>
+                <p
+                    class="text-gray-500 dark:text-gray-400 text-sm mt-2 font-medium bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+                    {{ displayStatus }}</p>
             </div>
 
             <!-- Group Participants -->
