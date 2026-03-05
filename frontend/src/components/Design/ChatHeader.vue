@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, ref } from "vue";
 import { useChatStore } from "../../stores/chat";
 import { useUserStore } from "../../stores/user";
 import UserAvatar from "./UserAvatar.vue";
@@ -101,14 +101,16 @@ import ChatHeaderMenu from "./ChatHeaderMenu.vue";
 import UserInfoOffcanvas from "./UserInfoOffcanvas.vue";
 import GroupInfoOffcanvas from "./GroupInfoOffcanvas.vue";
 import { onClickOutside } from '@vueuse/core';
-import type Toaster from '../Toaster.vue';
+import { useConfirmDialog } from '../../composables/useConfirmDialog';
+import { useToaster } from '../../composables/useToaster';
 
 const chatStore = useChatStore();
+const { confirm: confirmDialog } = useConfirmDialog();
+const toaster = useToaster();
 const userStore = useUserStore();
 const showMenu = ref(false);
 const showInfo = ref(false);
 const menuContainerRef = ref<HTMLElement | null>(null);
-const toaster = inject<InstanceType<typeof Toaster> | null>('toaster', null);
 
 // Close menu when clicking outside
 onClickOutside(menuContainerRef, () => {
@@ -154,7 +156,7 @@ const showInfoPanel = () => {
 
 // Menu Actions
 const handleSearch = () => {
-    toaster?.show('Search feature coming soon!', 'info');
+    toaster.info('Search feature coming soon!');
 };
 
 const handleMute = () => {
@@ -164,26 +166,34 @@ const handleMute = () => {
 };
 
 const handleViewInfo = () => {
-    toaster?.show(isGroup.value ? 'Group info coming soon!' : 'Contact info coming soon!', 'info');
+    toaster.info(isGroup.value ? 'Group info coming soon!' : 'Contact info coming soon!');
 };
 
 const handleAddMembers = () => {
-    toaster?.show('Add members feature coming soon!', 'info');
+    toaster.info('Add members feature coming soon!');
 };
 
-const handleLeaveGroup = () => {
-    if (confirm('Are you sure you want to leave this group?')) {
-        if (activeConversation.value?.id) {
-            chatStore.leaveGroup(activeConversation.value.id);
-        }
+const handleLeaveGroup = async () => {
+    const confirmed = await confirmDialog({
+        title: 'Leave Group',
+        message: `Are you sure you want to leave ${activeConversation.value?.name || 'this group'}?`,
+        confirmText: 'Leave',
+        variant: 'warning',
+    });
+    if (confirmed && activeConversation.value?.id) {
+        chatStore.leaveGroup(activeConversation.value.id);
     }
 };
 
-const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
-        if (activeConversation.value?.id) {
-            chatStore.deleteConversation(activeConversation.value.id);
-        }
+const handleDelete = async () => {
+    const confirmed = await confirmDialog({
+        title: 'Delete Conversation',
+        message: 'Are you sure you want to delete this conversation? This action cannot be undone.',
+        confirmText: 'Delete',
+        variant: 'danger',
+    });
+    if (confirmed && activeConversation.value?.id) {
+        chatStore.deleteConversation(activeConversation.value.id);
     }
 };
 </script>

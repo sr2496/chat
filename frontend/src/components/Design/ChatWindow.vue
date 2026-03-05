@@ -29,105 +29,71 @@
                     </transition>
                 </div>
 
-                <!-- Skeleton Loader -->
-                <transition name="fade" mode="out-in" @after-enter="onMessagesTransitionEnd">
-                    <div v-if="messagesLoading" class="space-y-8 animate-pulse">
-                        <div v-for="n in 3" :key="n" class="flex"
-                            :class="n % 3 === 0 ? 'justify-end' : 'gap-3 items-end'">
-                            <!-- Avatar Skeleton (received) -->
-                            <div v-if="n % 3 !== 0"
-                                class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex-shrink-0" />
+                <!-- Skeleton Loader or Virtual Message List -->
+                <MessageSkeleton v-if="messagesLoading" />
+                <div v-else
+                    :style="{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative', minHeight: '100%' }">
+                    <div v-for="virtualRow in virtualizer.getVirtualItems()" :key="virtualRow.key"
+                        :data-index="virtualRow.index"
+                        :ref="(el: any) => { if (el?.$el || el) virtualizer.measureElement(el?.$el ?? el) }"
+                        :style="{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualRow.start}px)`,
+                        }">
+                        <!-- Date Separator -->
+                        <DateSeparator v-if="flatItems[virtualRow.index].kind === 'date'"
+                            :day="flatItems[virtualRow.index].day!" />
 
-                            <!-- Bubble Skeleton -->
-                            <div class="max-w-[75%]">
-                                <div class="relative px-4 py-3 rounded-2xl bg-gray-200 dark:bg-gray-700">
-                                    <!-- Tail Skeleton -->
-                                    <div class="absolute bottom-0 w-4 h-4 bg-gray-200 dark:bg-gray-700" :class="n % 3 === 0
-                                        ? 'right-0 translate-x-2'
-                                        : 'left-0 -translate-x-2'
-                                        " />
-
-                                    <!-- Content Lines -->
-                                    <div class="space-y-2">
-                                        <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-full" />
-                                        <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4" />
-                                        <div class="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2" />
-                                    </div>
-
-                                    <!-- Time Skeleton -->
-                                    <div class="flex justify-end mt-2">
-                                        <div class="h-3 bg-gray-300 dark:bg-gray-600 rounded w-12" />
-                                    </div>
-                                </div>
-                            </div>
+                        <!-- Unread Divider -->
+                        <div v-else-if="flatItems[virtualRow.index].kind === 'unread'"
+                            class="relative my-4 flex items-center">
+                            <div class="h-px flex-grow bg-chat-border" />
+                            <span class="mx-4 text-xs font-semibold uppercase tracking-wider text-chat-text-muted">
+                                New messages
+                            </span>
+                            <div class="h-px flex-grow bg-chat-border" />
                         </div>
-                    </div>
-                    <div v-else key="messages" class="min-h-full flex flex-col justify-end">
-                        <template v-for="(msg, index) in messages" :key="msg.id">
-                            <DateSeparator v-if="shouldShowDate(index)" :day="getMessageDay(msg.created_at)" />
-                            <!-- Unread Divider -->
-                            <div v-if="msg.id === firstUnreadId" class="relative my-4 flex items-center">
-                                <div class="h-px flex-grow bg-chat-border" />
-                                <span class="mx-4 text-xs font-semibold uppercase tracking-wider text-chat-text-muted">
-                                    New messages
-                                </span>
-                                <div class="h-px flex-grow bg-chat-border" />
-                            </div>
-                            <MessageBubble :is-group="isGroup" :is-sent="isSent(msg)" :message="msg"
-                                :setMessageRef="setMessageRef" :getMessageDay="getMessageDay"
-                                @open-emoji="openReactionPicker" @open-actions="openContextMenu"
-                                @scroll-to-message="scrollToMessage" />
-                        </template>
 
-                        <!-- Uploading Messages -->
-                        <template v-for="upload in uploadingMessages" :key="upload.tempId">
-                            <MessageBubble :is-group="isGroup" :is-sent="true" :message="{
-                                type: upload.type,
+                        <!-- Message Bubble -->
+                        <MessageBubble v-else-if="flatItems[virtualRow.index].kind === 'message'"
+                            :is-group="isGroup"
+                            :is-sent="isSent(flatItems[virtualRow.index].message!)"
+                            :message="flatItems[virtualRow.index].message!"
+                            :setMessageRef="setMessageRef"
+                            :getMessageDay="getMessageDay"
+                            @open-emoji="openReactionPicker"
+                            @open-actions="openContextMenu"
+                            @scroll-to-message="scrollToMessage" />
+
+                        <!-- Uploading Message -->
+                        <MessageBubble v-else-if="flatItems[virtualRow.index].kind === 'uploading'"
+                            :is-group="isGroup"
+                            :is-sent="true"
+                            :message="{
+                                type: flatItems[virtualRow.index].upload!.type,
                                 message: '',
-                                file_path: upload.preview,
-                                file_name: upload.file.name,
-                                file_size: upload.file.size,
-                            }" :setMessageRef="setMessageRef" :getMessageDay="getMessageDay" :is-uploading="true"
-                                :upload-progress="upload.progress" @cancel-upload="cancelUpload(upload)" />
-                        </template>
+                                file_path: flatItems[virtualRow.index].upload!.preview,
+                                file_name: flatItems[virtualRow.index].upload!.file.name,
+                                file_size: flatItems[virtualRow.index].upload!.file.size,
+                            }"
+                            :setMessageRef="setMessageRef"
+                            :getMessageDay="getMessageDay"
+                            :is-uploading="true"
+                            :upload-progress="flatItems[virtualRow.index].upload!.progress"
+                            @cancel-upload="cancelUpload(flatItems[virtualRow.index].upload!)" />
                     </div>
-                </transition>
+                </div>
 
                 <!-- Drag & Drop Overlay -->
-                <transition name="fade">
-                    <div v-if="dragOver"
-                        class="absolute inset-0 z-40 bg-blue-500/20 dark:bg-blue-400/20 border-4 border-dashed border-blue-600 dark:border-blue-400 rounded-2xl flex items-center justify-center pointer-events-none backdrop-blur-sm">
-                        <div class="text-center">
-                            <svg class="w-20 h-20 mx-auto mb-4 text-blue-600 dark:text-blue-400" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                            <p class="text-3xl font-bold text-blue-700 dark:text-blue-300">Drop to send</p>
-                            <p class="text-lg text-blue-600 dark:text-blue-400 mt-2">Images, videos, documents</p>
-                        </div>
-                    </div>
-                </transition>
+                <DragDropOverlay :visible="dragOver" />
             </div>
 
             <!-- Go to Bottom Button -->
-            <teleport to="body">
-                <transition name="fade">
-                    <button v-if="isUserScrolledUp" @click="scrollToBottom"
-                        class="fixed bottom-24 right-6 z-50 w-10 h-10 rounded-full bg-white dark:bg-gray-700 shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-
-                        <!-- Unread Badge -->
-                        <span v-if="unreadCountWhileScrolled > 0"
-                            class="absolute -top-2 -left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm min-w-[18px] text-center">
-                            {{ unreadCountWhileScrolled }}
-                        </span>
-                    </button>
-                </transition>
-            </teleport>
+            <ScrollToBottomButton :visible="isUserScrolledUp" :unread-count="unreadCountWhileScrolled"
+                @click="scrollToBottom" />
         </div>
 
         <!-- Input Area (Reply Preview + Input) -->
@@ -137,102 +103,11 @@
 
 
         <!-- Reaction Picker Popup -->
-        <teleport to="body">
-            <transition name="reaction-fly">
-                <div v-if="reactionPickerMessageId" class="fixed z-50 pointer-events-none"
-                    :style="{ top: pickerTop + 'px', left: pickerLeft + 'px' }">
-                    <div data-reaction-menu="true"
-                        class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-2.5 border border-gray-200 dark:border-gray-700 flex items-center gap-2 pointer-events-auto">
-                        <button v-for="emoji in commonEmojis" :key="emoji"
-                            @click="addReaction(reactionPickerMessageId, emoji)"
-                            class="text-2xl hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 transition-all duration-150 text-gray-800 dark:text-gray-100">
-                            {{ emoji }}
-                        </button>
-                    </div>
-                </div>
-            </transition>
-        </teleport>
+        <ReactionPicker :message-id="reactionPickerMessageId"
+            :position="{ top: pickerTop, left: pickerLeft }" @react="addReaction" />
         <!-- Right-Click Context Menu -->
-        <teleport to="body">
-            <transition name="fade-scale">
-                <div v-if="contextMenu" class="fixed z-50"
-                    :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }" @click.stop @contextmenu.prevent>
-                    <div data-context-menu="true" class="
-          bg-white dark:bg-gray-800
-          rounded-2xl
-          shadow-2xl
-          border border-gray-200 dark:border-gray-700
-          py-2
-          min-w-[200px]
-          overflow-hidden
-          backdrop-blur-sm
-          ring-1 ring-black/5 dark:ring-white/10
-          text-gray-800 dark:text-gray-100
-        ">
-                        <!-- Reply -->
-                        <button @click="replyToMessage(contextMenu.message)" class="
-            w-full px-5 py-3.5
-            text-left text-sm font-medium
-            text-gray-800 dark:text-gray-100
-            flex items-center gap-4
-            hover:bg-gray-100 dark:hover:bg-gray-700
-            transition-all duration-150
-          ">
-                            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                            </svg>
-                            <span>Reply</span>
-                        </button>
-
-                        <!-- Copy Text (only for text messages) -->
-                        <button v-if="!contextMenu.message.type || contextMenu.message.type === 'text'"
-                            @click="copyMessageText(contextMenu.message)" class="
-            w-full px-5 py-3.5
-            text-left text-sm font-medium
-            text-gray-800 dark:text-gray-100
-            flex items-center gap-4
-            hover:bg-gray-100 dark:hover:bg-gray-700
-            transition-all duration-150
-          ">
-                            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            <span>Copy Text</span>
-                        </button>
-
-                        <!-- Forward (optional future feature) -->
-                        <!--
-        <button class="...">
-          <svg ...>Forward icon</svg>
-          Forward
-        </button>
-        -->
-
-                        <hr class="my-1 border-gray-200 dark:border-gray-700" />
-
-                        <!-- Delete (only for own messages) -->
-                        <button v-if="isSent(contextMenu.message)" @click="deleteMessage(contextMenu.message.id)" class="
-            w-full px-5 py-3.5
-            text-left text-sm font-medium
-            text-red-600 dark:text-red-400
-            flex items-center gap-4
-            hover:bg-red-50 dark:hover:bg-red-900/30
-            transition-all duration-150
-          ">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 7l-.867 12.142A2.227 2.227 0 0116.138 21H7.862a2.227 2.227 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            <span>Delete Message</span>
-                        </button>
-                    </div>
-                </div>
-            </transition>
-        </teleport>
+        <MessageContextMenu :menu="contextMenu" :is-own="contextMenu ? isSent(contextMenu.message) : false"
+            @reply="replyToMessage" @delete="deleteMessage" @close="contextMenu = null" />
     </div>
 </template>
 
@@ -246,57 +121,64 @@ import {
     computed,
     onUnmounted,
 } from "vue";
-import { api } from "../../axios";
 import { useChatStore } from "../../stores/chat";
+import * as chatApi from "../../services/chatApi";
+import type { Message, QueuedFile, UploadingMessage } from "../../types/chat";
+import { useVirtualizer } from "@tanstack/vue-virtual";
 
 import { useThrottleFn } from "@vueuse/core";
+import { useConfirmDialog } from "../../composables/useConfirmDialog";
+import { useToaster } from "../../composables/useToaster";
+
+interface VirtualChatItem {
+    id: string;
+    kind: 'date' | 'unread' | 'message' | 'uploading';
+    message?: Message;
+    upload?: UploadingMessage;
+    day?: string;
+}
 import ChatHeader from "./ChatHeader.vue";
 import MessageBubble from "./MessageBubble.vue";
 import { useUserStore } from "../../stores/user";
 import MessageInput from "./MessageInput.vue";
 import DateSeparator from "./DateSeparator.vue";
 import MediaComposer from "./MediaComposer.vue";
+import MessageSkeleton from "./MessageSkeleton.vue";
+import DragDropOverlay from "./DragDropOverlay.vue";
+import ScrollToBottomButton from "./ScrollToBottomButton.vue";
+import ReactionPicker from "./ReactionPicker.vue";
+import MessageContextMenu from "./MessageContextMenu.vue";
 
-
-interface QueuedFile {
-    file: File;
-    preview?: string;
-    type: "image" | "video" | "file" | "audio";
-    name: string;
-    size: number;
-    caption?: string;
-}
 
 const queuedFiles = ref<QueuedFile[]>([]);
 
-interface UploadingMessage {
-    tempId: string;
-    file: File;
-    preview?: string;
-    type: string;
-    progress: number;
-    controller: AbortController;
-}
-
 export default defineComponent({
-    components: { MessageBubble, ChatHeader, MessageInput, DateSeparator, MediaComposer },
+    components: { MessageBubble, ChatHeader, MessageInput, DateSeparator, MediaComposer, MessageSkeleton, DragDropOverlay, ScrollToBottomButton, ReactionPicker, MessageContextMenu },
     emits: ['start-call'],
     setup(_, { emit }) {
         const chatStore = useChatStore();
+        const toaster = useToaster();
+        const { confirm: confirmDialog } = useConfirmDialog();
         const messages = computed(() => chatStore.activeMessages);
         const isMediaComposerOpen = ref(false);
         const dragOver = ref(false);
 
         const contextMenu = ref<{
-            message: any;
+            message: Message;
             x: number;
             y: number;
         } | null>(null);
 
         const deleteMessage = async (messageId: number) => {
-            if (!confirm("Are you sure you want to delete this message?")) return;
+            const confirmed = await confirmDialog({
+                title: 'Delete Message',
+                message: 'Are you sure you want to delete this message? This cannot be undone.',
+                confirmText: 'Delete',
+                variant: 'danger',
+            });
+            if (!confirmed) return;
             try {
-                await api.delete(`/messages/${messageId}`);
+                await chatApi.deleteMessage(messageId);
                 chatStore.removeMessage(messageId);
                 contextMenu.value = null;
             } catch (err) {
@@ -322,6 +204,38 @@ export default defineComponent({
         const isGroup = computed(() => activeConversation.value?.type === "group");
         const messagesLoading = ref(true);
 
+        // Virtual scroll: build flat item list
+        const flatItems = computed<VirtualChatItem[]>(() => {
+            const items: VirtualChatItem[] = [];
+            const msgs = messages.value;
+            for (let i = 0; i < msgs.length; i++) {
+                const msg = msgs[i];
+                // Date separator
+                if (shouldShowDate(i)) {
+                    items.push({ id: `date-${i}-${msg.created_at}`, kind: 'date', day: getMessageDay(msg.created_at) });
+                }
+                // Unread divider
+                if (msg.id === firstUnreadId.value) {
+                    items.push({ id: 'unread-divider', kind: 'unread' });
+                }
+                // Message
+                items.push({ id: `msg-${msg.id}`, kind: 'message', message: msg });
+            }
+            // Uploading messages
+            for (const upload of uploadingMessages.value) {
+                items.push({ id: `upload-${upload.tempId}`, kind: 'uploading', upload });
+            }
+            return items;
+        });
+
+        const virtualizer = useVirtualizer(computed(() => ({
+            count: flatItems.value.length,
+            getScrollElement: () => scrollContainer.value,
+            estimateSize: () => 80,
+            overscan: 15,
+            getItemKey: (index: number) => flatItems.value[index]?.id ?? index,
+        })));
+
 
         const activeConversation = computed(() => {
             const convId = chatStore.activeConversationId;
@@ -338,7 +252,7 @@ export default defineComponent({
             }
         };
 
-        const isSent = (msg: any) => msg.sender?.id === currentUserId.value;
+        const isSent = (msg: Message) => msg.sender?.id === currentUserId.value;
 
         const getMessageDay = (timestamp?: string) => {
             if (!timestamp) return "";
@@ -369,20 +283,13 @@ export default defineComponent({
         const sendText = async (text: string) => {
             if (!chatStore.activeConversationId) return;
             try {
-                const payload: any = {
-                    message: text,
-                };
-
-                if (replyingTo.value?.id) {
-                    payload.reply_to_message_id = replyingTo.value.id;
-                }
-
-                const res = await api.post(
-                    `/messages/${chatStore.activeConversationId}`,
-                    payload
+                const msg = await chatApi.sendTextMessage(
+                    chatStore.activeConversationId,
+                    text,
+                    replyingTo.value?.id
                 );
 
-                chatStore.pushMessage(res.data.data);
+                chatStore.pushMessage(msg);
                 replyingTo.value = null;
 
                 scrollToBottom();
@@ -458,7 +365,6 @@ export default defineComponent({
         const messageInputRef = ref<InstanceType<typeof MessageInput> | null>(null);
 
         const closeComposer = () => {
-            console.log('[DEBUG] closeComposer called');
             queuedFiles.value.forEach(f => {
                 if (f.preview) {
                     URL.revokeObjectURL(f.preview);
@@ -467,16 +373,10 @@ export default defineComponent({
 
             queuedFiles.value = [];
             isMediaComposerOpen.value = false;
-            console.log('[DEBUG] isMediaComposerOpen set to false');
 
-            // Restore focus to the textarea after closing composer
-            // Delay accounts for the fade-slide transition
             nextTick(() => {
-                console.log('[DEBUG] nextTick callback executing');
                 setTimeout(() => {
-                    console.log('[DEBUG] setTimeout callback executing, ref:', messageInputRef.value);
                     messageInputRef.value?.focusInput();
-                    console.log('[DEBUG] focusInput called');
                 }, 200);
             });
         };
@@ -515,37 +415,28 @@ export default defineComponent({
                 scrollToBottom();
 
                 try {
-                    console.log('Uploading file type:', item.type);
+                    const msg = await chatApi.sendFileMessage(
+                        chatStore.activeConversationId!,
+                        item.file,
+                        {
+                            type: item.type,
+                            caption: item.caption,
+                            signal: controller.signal,
+                            onUploadProgress: (percent) => {
+                                uploadingMessages.value = uploadingMessages.value.map(m =>
+                                    m.tempId === tempId ? { ...m, progress: percent } : m
+                                );
+                            },
+                        }
+                    );
 
-                    const form = new FormData();
-                    form.append("file", item.file);
-                    form.append("type", item.type);
-
-                    if (item.caption?.trim()) {
-                        form.append("message", item.caption); // ← Send caption as message text
-                    }
-
-                    const res = await api.post(`/messages/${chatStore.activeConversationId}`, form, {
-                        signal: controller.signal,
-                        onUploadProgress: (e) => {
-                            if (!e.total) return;
-                            const percent = Math.round((e.loaded * 100) / e.total);
-                            console.log('Upload progress:', percent);
-
-                            uploadingMessages.value = uploadingMessages.value.map(m =>
-                                m.tempId === tempId ? { ...m, progress: percent } : m
-                            );
-                        },
-                    });
-
-                    chatStore.pushMessage(res.data.data);
+                    chatStore.pushMessage(msg);
                     scrollToBottom();
 
                     setTimeout(() => {
                         uploadingMessages.value = uploadingMessages.value.filter(m => m.tempId !== tempId);
                     }, 1000);
-                } catch (err: any) {
-                    // ... error handling
+                } catch (err: unknown) {
                     uploadingMessages.value = uploadingMessages.value.filter(
                         (m) => m.tempId !== tempId
                     );
@@ -554,7 +445,7 @@ export default defineComponent({
                         URL.revokeObjectURL(uploadItem.preview);
                     }
 
-                    if (err.name !== "AbortError") {
+                    if (err instanceof Error && err.name !== "AbortError") {
                         console.error("Upload failed", err);
                     }
                 }
@@ -606,22 +497,17 @@ export default defineComponent({
             if (!chatStore.activeConversationId || messageIds.length === 0) return;
 
             try {
-                await api.post("/messages/read", {
-                    conversation_id: chatStore.activeConversationId,
-                    message_ids: messageIds,
-                });
+                await chatApi.markMessagesAsRead(chatStore.activeConversationId, messageIds);
 
-                // Update local state - mark messages as read
                 const msgs = messages.value;
                 if (msgs) {
-                    msgs.forEach((m: any) => {
+                    msgs.forEach((m) => {
                         if (messageIds.includes(m.id)) {
                             m.read_by_me = true;
                         }
                     });
                 }
 
-                // Clear unread count for this conversation
                 chatStore.clearUnread(chatStore.activeConversationId);
                 unreadCountWhileScrolled.value = 0;
             } catch (error) {
@@ -633,8 +519,8 @@ export default defineComponent({
 
             // Mark visible unread messages as read immediately since we are jumping to bottom
             const unreadIds = messages.value
-                .filter((m: any) => !m.read_by_me && m.sender.id !== currentUserId.value)
-                .map((m: any) => m.id);
+                .filter((m) => !m.read_by_me && m.sender.id !== currentUserId.value)
+                .map((m) => m.id);
 
             if (unreadIds.length > 0) {
                 markMessagesAsRead(unreadIds);
@@ -653,48 +539,55 @@ export default defineComponent({
                 return;
             }
 
-            const el = scrollContainer.value;
-            if (!el) return;
-
-            const scroll = () => {
-                el.scrollTop = el.scrollHeight - el.clientHeight;
-            };
-
-            // Run multiple times to guarantee layout stability
-            scroll();
-            requestAnimationFrame(scroll);
-            setTimeout(() => {
-                scroll();
-            }, 80);
+            // Use virtualizer to scroll to the last item
+            const count = flatItems.value.length;
+            if (count > 0) {
+                virtualizer.value.scrollToIndex(count - 1, { align: 'end' });
+                // Run again after measurement settles
+                requestAnimationFrame(() => {
+                    virtualizer.value.scrollToIndex(count - 1, { align: 'end' });
+                });
+            }
         };
 
         const onMessagesTransitionEnd = () => {
             scrollToFirstUnread();
         };
 
+        // When messages finish loading, scroll to unread or bottom
+        watch(messagesLoading, (loading, wasLoading) => {
+            if (wasLoading && !loading) {
+                nextTick(() => scrollToFirstUnread());
+            }
+        });
+
         const scrollToMessage = async (messageId: number) => {
-            await nextTick(); // Wait for DOM update
+            await nextTick();
 
-            const el = messageRefs.get(messageId);
-            if (!el || !scrollContainer.value) return;
-
-            // Scroll into view with smooth behavior
-            el.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center', // Centers the message vertically
-            });
-
-            // Optional: Add a subtle highlight flash
-            el.classList.add(
-                'bg-blue-100',
-                'dark:bg-blue-900/30',
-                'transition-all',
-                'duration-1000'
+            // Find the index of this message in the flat list
+            const index = flatItems.value.findIndex(
+                item => item.kind === 'message' && item.message?.id === messageId
             );
-            setTimeout(() => {
-                el.classList.remove('bg-blue-100', 'dark:bg-blue-900/30');
-            }, 2000);
 
+            if (index >= 0) {
+                virtualizer.value.scrollToIndex(index, { align: 'center', behavior: 'smooth' });
+            }
+
+            // Highlight flash after scroll settles
+            await nextTick();
+            setTimeout(() => {
+                const el = messageRefs.get(messageId);
+                if (!el) return;
+                el.classList.add(
+                    'bg-blue-100',
+                    'dark:bg-blue-900/30',
+                    'transition-all',
+                    'duration-1000'
+                );
+                setTimeout(() => {
+                    el.classList.remove('bg-blue-100', 'dark:bg-blue-900/30');
+                }, 2000);
+            }, 300);
         };
 
         const handleScroll = () => {
@@ -711,8 +604,8 @@ export default defineComponent({
                     isUserScrolledUp.value = false;
                     // Mark pending messages as read
                     const unreadIds = messages.value
-                        .filter((m: any) => !m.read_by_me && m.sender.id !== currentUserId.value)
-                        .map((m: any) => m.id);
+                        .filter((m) => !m.read_by_me && m.sender.id !== currentUserId.value)
+                        .map((m) => m.id);
                     if (unreadIds.length > 0) {
                         markMessagesAsRead(unreadIds);
                     }
@@ -724,19 +617,18 @@ export default defineComponent({
 
             // Only load more if near the top
             if (el.scrollTop < 200 && chatStore.pagination[chatStore.activeConversationId]?.hasMore) {
-                // Capture current scroll position and height BEFORE loading more
-                const previousHeight = el.scrollHeight;
-                const previousScrollTop = el.scrollTop;
+                // Capture the first visible item's message ID before loading
+                const firstVisibleItem = virtualizer.value.getVirtualItems()[0];
+                const firstVisibleKey = firstVisibleItem ? flatItems.value[firstVisibleItem.index]?.id : null;
 
-                chatStore.loadMessages(chatStore.activeConversationId, true).finally(() => {
+                chatStore.loadMessages(chatStore.activeConversationId, true).then(() => {
+                    if (!firstVisibleKey) return;
+                    // After new messages prepended, find the old first-visible item's new index
                     nextTick(() => {
-                        if (!scrollContainer.value) return;
-
-                        const newHeight = scrollContainer.value.scrollHeight;
-
-                        // Adjust scroll to compensate for newly added content at the top
-                        scrollContainer.value.scrollTop = previousScrollTop + (newHeight - previousHeight);
-
+                        const newIndex = flatItems.value.findIndex(item => item.id === firstVisibleKey);
+                        if (newIndex >= 0) {
+                            virtualizer.value.scrollToIndex(newIndex, { align: 'start' });
+                        }
                     });
                 });
             }
@@ -776,14 +668,14 @@ export default defineComponent({
         const activeStickyDate = ref<string | null>(null);
 
         const onScroll = () => {
-            const rows = scrollContainer.value?.querySelectorAll(".message-row");
-            if (!rows) return;
+            const virtualItems = virtualizer.value.getVirtualItems();
+            if (!virtualItems.length) return;
 
-
-            for (const row of rows) {
-                const rect = row.getBoundingClientRect();
-                if (rect.top >= 0) {
-                    const day = (row as HTMLElement).dataset.day;
+            // Find the first visible message-type item to determine sticky date
+            for (const vItem of virtualItems) {
+                const item = flatItems.value[vItem.index];
+                if (item?.kind === 'message' && item.message) {
+                    const day = getMessageDay(item.message.created_at);
                     if (day && day !== activeStickyDate.value) {
                         activeStickyDate.value = day;
                     }
@@ -792,7 +684,7 @@ export default defineComponent({
             }
         };
 
-        const openContextMenu = (e: MouseEvent, message: any) => {
+        const openContextMenu = (e: MouseEvent, message: Message) => {
             e.preventDefault();
 
             if (contextMenu.value && contextMenu.value?.message?.id === message.id) {
@@ -834,7 +726,7 @@ export default defineComponent({
 
             const other = chatStore.getOtherUser(conv);
             if (!other) {
-                alert("Can only call in private conversations.");
+                toaster.warning("Can only call in private conversations.");
                 return;
             }
 
@@ -842,7 +734,7 @@ export default defineComponent({
             emit('start-call', other.id);
         };
 
-        const replyToMessage = (message: any) => {
+        const replyToMessage = (message: Message) => {
             replyingTo.value = {
                 id: message.id,
                 senderName: message.sender?.id === currentUserId.value ? "You" : message.sender?.name || "Unknown",
@@ -874,10 +766,6 @@ export default defineComponent({
 
         };
 
-        const copyMessageText = (message: any) => {
-            navigator.clipboard.writeText(message.message || '');
-            contextMenu.value = null;
-        };
 
         watch(
             () => chatStore.activeConversationId,
@@ -913,11 +801,9 @@ export default defineComponent({
                 // Calculate unread count (messages not from me and not read)
                 const unreadIds = messages
                     .filter(
-                        (m: any) => !m.read_by_me && m.sender.id !== currentUserId.value
+                        (m) => !m.read_by_me && m.sender.id !== currentUserId.value
                     )
-                    .map((m: any) => m.id);
-
-                console.log(unreadIds.length);
+                    .map((m) => m.id);
 
                 if (unreadIds.length > 0 && chatStore.activeConversationId) {
                     // Check if we are at the bottom or if it's the initial load
@@ -947,7 +833,6 @@ export default defineComponent({
         const reactionPickerMessageId = ref<number | null>(null);
         const pickerTop = ref(0); // ← ADD THIS
         const pickerLeft = ref(0);
-        const commonEmojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
         // Group reactions: { emoji: string, count: number, isReactedByMe: boolean }
 
@@ -1038,12 +923,13 @@ export default defineComponent({
         return {
             isGroup,
             isSent,
-            enlargedImage,
-            openImageModal,
             uploadingMessages,
+            flatItems,
+            virtualizer: virtualizer as any,
             sendText,
             cancelUpload,
             scrollContainer,
+            messageInputRef,
             messagesLoading,
             messages,
             loadingMore,
@@ -1054,7 +940,6 @@ export default defineComponent({
             activeStickyDate,
             showStickyDate,
             openReactionPicker,
-            commonEmojis,
             reactionPickerMessageId,
             pickerTop,
             pickerLeft,
@@ -1074,10 +959,7 @@ export default defineComponent({
             openContextMenu,
             replyToMessage,
             scrollToMessage,
-            type: "audio" as const,
-            copyMessageText,
             deleteMessage,
-            onMessagesTransitionEnd,
             isUserScrolledUp,
             unreadCountWhileScrolled,
             scrollToBottom,
@@ -1119,28 +1001,4 @@ export default defineComponent({
     animation: shimmer 1.5s infinite;
 }
 
-/* Reaction Picker: Fly in from the message */
-.reaction-fly-enter-active {
-    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-    /* bouncy ease-out */
-}
-
-.reaction-fly-leave-active {
-    transition: all 0.15s ease-in;
-}
-
-.reaction-fly-enter-from {
-    opacity: 0;
-    transform: scale(0.6) translateY(20px);
-}
-
-.reaction-fly-enter-to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-}
-
-.reaction-fly-leave-to {
-    opacity: 0;
-    transform: scale(0.8) translateY(10px);
-}
 </style>

@@ -1,60 +1,47 @@
 import { defineStore } from "pinia";
-import { api } from "../axios";
 import { useUserStore } from "./user";
 import { echo } from "../echo";
+import mitt from "mitt";
+import type {
+  Message,
+  Conversation,
+  ConversationUser,
+  User,
+  ChatNotification,
+  CursorPagination,
+  MessagePagination,
+} from "../types/chat";
+import * as chatApi from "../services/chatApi";
 
-interface MessageReply {
-  id: number;
-  sender_name: string;
-  body: string;
-}
+type ChatEvents = {
+  notification: ChatNotification;
+  sound: void;
+};
 
-interface Message {
-  id: number;
-  message: string;
-  type: string;
-  sender: any;
-  reactions?: Record<string, number[]>;
-  conversation_id: number;
-  created_at: string;
-  reply_to?: MessageReply | null;
-  file_path: string;
-  mime_type: string;
-  file_name: string;
-  file_size: number;
-  read_by_me: boolean;
-  read_by_count: number;
-  read_by: number[];
-}
+export const chatEventBus = mitt<ChatEvents>();
 
 export const useChatStore = defineStore("chat", {
   state: () => ({
-    conversations: [] as any[],
+    conversations: [] as Conversation[],
     conversationPagination: {
-      nextCursor: null as number | null,
+      nextCursor: null,
       hasMore: true,
       loading: false,
-    },
-    users: [] as any[],
+    } as CursorPagination,
+    users: [] as User[],
     usersPagination: {
-      nextCursor: null as number | null,
+      nextCursor: null,
       hasMore: true,
       loading: false,
-    },
+    } as CursorPagination,
     messagesByConversation: {} as Record<number, Message[]>,
-    pagination: {} as Record<
-      number,
-      {
-        beforeId: number | null;
-        hasMore: boolean;
-        loading: boolean;
-      }
-    >,
+    pagination: {} as Record<number, MessagePagination>,
     activeConversationId: null as number | null,
     echoChannels: new Map<number, any>(),
     searchQuery: "",
     typingUsers: {} as Record<number, number[]>,
     mutedConversations: [] as number[],
+    _typingTimeouts: new Map<string, ReturnType<typeof setTimeout>>(),
   }),
 
   getters: {
@@ -86,11 +73,11 @@ export const useChatStore = defineStore("chat", {
       const conv = state.conversations.find((c) => c.id === conversationId);
       if (!conv) return "";
 
-      const typingUsers = conv.users.filter(
-        (u: any) => typers.includes(u.id) && u.id !== currentUserId
+      const typingUserList = conv.users.filter(
+        (u) => typers.includes(u.id) && u.id !== currentUserId
       );
 
-      if (typingUsers.length === 0) return "";
+      if (typingUserList.length === 0) return "";
 
       // 👇 Private chat (1-to-1)
       if (conv.users.length === 2) {
@@ -98,7 +85,7 @@ export const useChatStore = defineStore("chat", {
       }
 
       // 👇 Group chat
-      const names = typingUsers.map((u: any) => u.name);
+      const names = typingUserList.map((u) => u.name);
 
       if (names.length === 1) return `${names[0]} is typing...`;
       if (names.length === 2)
@@ -109,11 +96,11 @@ export const useChatStore = defineStore("chat", {
 
     getOtherUser: (_state) => {
       const userStore = useUserStore();
-      return (conversation: any) => {
+      return (conversation: Conversation): ConversationUser | null => {
         if (conversation.type !== "private") return null;
         const currentUserId = userStore.user?.id;
         return (
-          conversation.users.find((u: any) => u.id !== currentUserId) || null
+          conversation.users.find((u) => u.id !== currentUserId) || null
         );
       };
     },
@@ -135,35 +122,25 @@ export const useChatStore = defineStore("chat", {
     /* ---------------- CONVERSATIONS ---------------- */
 
     async loadConversations(loadMore = false) {
-      // Prevent concurrent loading
       if (this.conversationPagination.loading) return;
-
-      // If trying to load more but no more available, return
       if (loadMore && !this.conversationPagination.hasMore) return;
 
       this.conversationPagination.loading = true;
 
       try {
-        const params: any = { limit: 20 };
-
-        // Add cursor for pagination if loading more
-        if (loadMore && this.conversationPagination.nextCursor) {
-          params.after_id = this.conversationPagination.nextCursor;
-        }
-
-        const res = await api.get("/conversations", { params });
+        const res = await chatApi.fetchConversations({
+          limit: 20,
+          after_id: loadMore ? this.conversationPagination.nextCursor : null,
+        });
 
         if (loadMore) {
-          // Append new conversations to existing list
-          this.conversations = [...this.conversations, ...res.data.data];
+          this.conversations = [...this.conversations, ...res.data];
         } else {
-          // Replace all conversations (initial load or refresh)
-          this.conversations = res.data.data;
+          this.conversations = res.data;
         }
 
-        // Update pagination metadata
-        this.conversationPagination.hasMore = res.data.meta?.has_more ?? false;
-        this.conversationPagination.nextCursor = res.data.meta?.next_cursor ?? null;
+        this.conversationPagination.hasMore = res.meta?.has_more ?? false;
+        this.conversationPagination.nextCursor = res.meta?.next_cursor ?? null;
       } finally {
         this.conversationPagination.loading = false;
       }
@@ -176,14 +153,12 @@ export const useChatStore = defineStore("chat", {
     /* ---------------- USERS ---------------- */
 
     async loadUsers(loadMore = false) {
-      // Reset state for initial load
       if (!loadMore) {
         this.users = [];
         this.usersPagination.nextCursor = null;
         this.usersPagination.hasMore = true;
       }
 
-      // Prevent concurrent loading or loading when no more data
       if (this.usersPagination.loading || (loadMore && !this.usersPagination.hasMore)) {
         return;
       }
@@ -191,26 +166,19 @@ export const useChatStore = defineStore("chat", {
       this.usersPagination.loading = true;
 
       try {
-        const params: any = { limit: 20 };
-
-        // Add cursor for pagination if loading more
-        if (this.usersPagination.nextCursor) {
-          params.after_id = this.usersPagination.nextCursor;
-        }
-
-        const res = await api.get("/users", { params });
+        const res = await chatApi.fetchUsers({
+          limit: 20,
+          after_id: this.usersPagination.nextCursor,
+        });
 
         if (loadMore) {
-          // Append new users to existing list
-          this.users = [...this.users, ...res.data.data];
+          this.users = [...this.users, ...res.data];
         } else {
-          // Replace all users (initial load)
-          this.users = res.data.data;
+          this.users = res.data;
         }
 
-        // Update pagination metadata
-        this.usersPagination.hasMore = res.data.meta?.has_more ?? false;
-        this.usersPagination.nextCursor = res.data.meta?.next_cursor ?? null;
+        this.usersPagination.hasMore = res.meta?.has_more ?? false;
+        this.usersPagination.nextCursor = res.meta?.next_cursor ?? null;
       } catch (error) {
         console.error("Failed to load users:", error);
       } finally {
@@ -247,34 +215,27 @@ export const useChatStore = defineStore("chat", {
         (c) => c.id === conversationId
       );
       if (conversation && conversation.unread_count) {
-        // Ensure we load all unread messages plus some context
         const needed = conversation.unread_count + 20;
-        perPage = Math.max(perPage, needed); 
+        perPage = Math.max(perPage, needed);
       }
 
       try {
-        const res = await api.get(`/messages/${conversationId}`, {
-          params: {
-            limit: loadMore ? perPage : perPage, // load more initially
-            before_id: loadMore ? pager.beforeId : null,
-          },
+        const res = await chatApi.fetchMessages(conversationId, {
+          limit: perPage,
+          before_id: loadMore ? pager.beforeId : null,
         });
 
-        const msgs = res.data.data;
-        const meta = res.data.meta;
-
         if (loadMore) {
-          // PREPEND older messages
           this.messagesByConversation[conversationId] = [
-            ...msgs,
+            ...res.data,
             ...(this.messagesByConversation[conversationId] || []),
           ];
         } else {
-          this.messagesByConversation[conversationId] = msgs;
+          this.messagesByConversation[conversationId] = res.data;
         }
 
-        pager.beforeId = meta.oldest_id ?? pager.beforeId;
-        pager.hasMore = meta.has_more;
+        pager.beforeId = res.meta.oldest_id ?? pager.beforeId;
+        pager.hasMore = res.meta.has_more;
       } finally {
         pager.loading = false;
       }
@@ -308,7 +269,7 @@ export const useChatStore = defineStore("chat", {
         if (!userStore.user) return;
         
         echo.private(`chat.${userStore.user.id}`)
-            .listen('.UserAddedToConversation', (e: { conversation: any }) => {
+            .listen('.UserAddedToConversation', (e: { conversation: Conversation }) => {
                 this.addConversationIfMissing(e.conversation);
                 this.startListening(e.conversation.id);
             });
@@ -347,10 +308,14 @@ export const useChatStore = defineStore("chat", {
           if (e.user_id !== userStore.user?.id) {
             this.setUserTyping(conversationId, e.user_id);
 
-            // auto-remove after 2s
-            setTimeout(() => {
+            // auto-remove after 2s, tracking the timeout for cleanup
+            const key = `${conversationId}-${e.user_id}`;
+            const existing = this._typingTimeouts.get(key);
+            if (existing) clearTimeout(existing);
+            this._typingTimeouts.set(key, setTimeout(() => {
               this.removeUserTyping(conversationId, e.user_id);
-            }, 2000);
+              this._typingTimeouts.delete(key);
+            }, 2000));
           }
         })
         .listen(
@@ -363,7 +328,7 @@ export const useChatStore = defineStore("chat", {
             const msgs = this.messagesByConversation[e.conversationId];
             if (!msgs) return;
 
-            msgs.forEach((m: any) => {
+            msgs.forEach((m) => {
               if (e.messageIds.includes(m.id)) {
                 if (!m.read_by) m.read_by = [];
                 if (!m.read_by.includes(e.userId)) {
@@ -407,7 +372,7 @@ export const useChatStore = defineStore("chat", {
             if (index !== -1) {
               const conv = this.conversations[index];
               if (conv.users) {
-                const updatedUsers = conv.users.filter((u: any) => u.id !== e.userId);
+                const updatedUsers = conv.users.filter((u) => u.id !== e.userId);
                 // Immutable update
                 this.conversations[index] = {
                   ...conv,
@@ -419,13 +384,13 @@ export const useChatStore = defineStore("chat", {
         )
         .listen(
           ".UserAddedToGroup",
-          (e: { conversationId: number; users: any[] }) => {
+          (e: { conversationId: number; users: ConversationUser[] }) => {
             const index = this.conversations.findIndex(c => c.id === e.conversationId);
             if (index !== -1) {
               const conv = this.conversations[index];
               if (conv.users) {
-                const existingIds = new Set(conv.users.map((u: any) => u.id));
-                const uniqueNewUsers = e.users.filter((u: any) => !existingIds.has(u.id));
+                const existingIds = new Set(conv.users.map((u) => u.id));
+                const uniqueNewUsers = e.users.filter((u) => !existingIds.has(u.id));
                 
                 if (uniqueNewUsers.length > 0) {
                      this.conversations[index] = {
@@ -446,9 +411,13 @@ export const useChatStore = defineStore("chat", {
         echo.leave(`conversation.${id}`);
       });
       this.echoChannels.clear();
+
+      // Clear all tracked typing timeouts
+      this._typingTimeouts.forEach((timeout) => clearTimeout(timeout));
+      this._typingTimeouts.clear();
     },
 
-    addConversationIfMissing(conversation: any) {
+    addConversationIfMissing(conversation: Conversation) {
       const exists = this.conversations.find((c) => c.id === conversation.id);
       if (!exists) {
         this.conversations.unshift(conversation);
@@ -467,8 +436,7 @@ export const useChatStore = defineStore("chat", {
     },
 
     async createPrivateConversation(userId: number) {
-      const res = await api.post("private-conversations", { user_id: userId });
-      const conversation = res.data.data;
+      const conversation = await chatApi.createPrivateConversation(userId);
 
       this.addConversationIfMissing(conversation);
       this.setActiveConversation(conversation.id);
@@ -477,30 +445,11 @@ export const useChatStore = defineStore("chat", {
     },
 
     async createGroupConversation(name: string, userIds: number[], avatar?: File) {
-      if (avatar) {
-        const formData = new FormData();
-        formData.append("name", name);
-        userIds.forEach((id) => formData.append("user_ids[]", id.toString()));
-        formData.append("avatar", avatar);
+      const conversation = await chatApi.createGroupConversation(name, userIds, avatar);
 
-        const res = await api.post("groups", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        const conversation = res.data.data;
-        this.addConversationIfMissing(conversation);
-        this.setActiveConversation(conversation.id);
-        return conversation;
-      } else {
-        const res = await api.post("groups", {
-          name,
-          user_ids: userIds,
-        });
-
-        const conversation = res.data.data;
-        this.addConversationIfMissing(conversation);
-        this.setActiveConversation(conversation.id);
-        return conversation;
-      }
+      this.addConversationIfMissing(conversation);
+      this.setActiveConversation(conversation.id);
+      return conversation;
     },
 
     updateConversationLastMessage(message: Message) {
@@ -534,7 +483,7 @@ export const useChatStore = defineStore("chat", {
         case "audio":
           return "🎤 Voice message";
         case "file":
-          return `📎 ${(msg as any).file_name || "File"}`;
+          return `📎 ${msg.file_name || "File"}`;
         default:
           return msg.message?.trim() || "";
       }
@@ -651,7 +600,7 @@ export const useChatStore = defineStore("chat", {
       this.toggleReaction(messageId, emoji);
 
       try {
-        await api.post(`/messages/${messageId}/reactions`, { emoji });
+        await chatApi.toggleReaction(messageId, emoji);
       } catch {
         // rollback on failure
         this.toggleReaction(messageId, emoji);
@@ -672,7 +621,7 @@ export const useChatStore = defineStore("chat", {
 
     async deleteConversation(conversationId: number) {
       try {
-        await api.delete(`/conversations/${conversationId}`);
+        await chatApi.deleteConversation(conversationId);
         
         // Remove from local state
         this.conversations = this.conversations.filter(c => c.id !== conversationId);
@@ -697,7 +646,7 @@ export const useChatStore = defineStore("chat", {
 
     async leaveGroup(conversationId: number) {
       try {
-        await api.post(`/conversations/${conversationId}/leave`);
+        await chatApi.leaveGroup(conversationId);
         
         // Remove from local state
         this.conversations = this.conversations.filter(c => c.id !== conversationId);
@@ -721,35 +670,31 @@ export const useChatStore = defineStore("chat", {
     },
 
     async addMembersToGroup(conversationId: number, userIds: number[]) {
-        const res = await api.post(`/conversations/${conversationId}/users`, { user_ids: userIds });
-        const newUsers = res.data.users;
-        
-        // Local update (in case broadcast is slow or self-message is ignored)
-        // Actually, broadcast excludes self, so we MUST update locally for the adder.
+        const res = await chatApi.addMembersToGroup(conversationId, userIds);
+        const newUsers = res.users;
+
         const index = this.conversations.findIndex(c => c.id === conversationId);
-            if (index !== -1) {
-              const conv = this.conversations[index];
-              if (conv.users) {
-                const existingIds = new Set(conv.users.map((u: any) => u.id));
-                const uniqueNewUsers = newUsers.filter((u: any) => !existingIds.has(u.id));
-                
-                if (uniqueNewUsers.length > 0) {
-                     this.conversations[index] = {
-                        ...conv,
-                        users: [...conv.users, ...uniqueNewUsers]
-                    };
-                }
-              }
+        if (index !== -1) {
+          const conv = this.conversations[index];
+          if (conv.users) {
+            const existingIds = new Set(conv.users.map((u) => u.id));
+            const uniqueNewUsers = newUsers.filter((u) => !existingIds.has(u.id));
+
+            if (uniqueNewUsers.length > 0) {
+              this.conversations[index] = {
+                ...conv,
+                users: [...conv.users, ...uniqueNewUsers] as ConversationUser[],
+              };
             }
-        return res.data;
+          }
+        }
+        return res;
     },
 
-    // Notification handling
     showNotification(message: Message) {
       const conversation = this.conversations.find(c => c.id === message.conversation_id);
       if (!conversation) return;
 
-      // Determine conversation name
       let conversationName = '';
       if (conversation.type === 'group') {
         conversationName = conversation.name || 'Group';
@@ -758,11 +703,9 @@ export const useChatStore = defineStore("chat", {
         conversationName = otherUser?.name || 'Chat';
       }
 
-      // Get sender info
       const userStore = useUserStore();
-      
-      // Create notification payload
-      const notification = {
+
+      const notification: ChatNotification = {
         id: `msg-${message.id}-${Date.now()}`,
         conversationId: message.conversation_id,
         senderName: message.sender.name,
@@ -772,15 +715,8 @@ export const useChatStore = defineStore("chat", {
         conversationName,
       };
 
-      // Trigger notification via global handler (set by ChatLayout)
-      if ((window as any).__chatNotificationHandler) {
-        (window as any).__chatNotificationHandler(notification);
-      }
-
-      // Play sound
-      if ((window as any).__chatSoundHandler) {
-        (window as any).__chatSoundHandler();
-      }
+      chatEventBus.emit('notification', notification);
+      chatEventBus.emit('sound');
     },
   },
 });

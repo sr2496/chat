@@ -173,7 +173,8 @@ import UserAvatar from "./UserAvatar.vue";
 import SettingsOffcanvas from "./SettingsOffcanvas.vue";
 import NewChatModal from "./NewChatModal.vue";
 import CreateGroupModal from "./CreateGroupModal.vue";
-import { api } from "../../axios";
+import type { User } from "../../types/chat";
+import * as chatApi from "../../services/chatApi";
 
 export default defineComponent({
   components: { UserAvatar, SettingsOffcanvas, NewChatModal, CreateGroupModal },
@@ -183,7 +184,7 @@ export default defineComponent({
     const chatStore = useChatStore();
     const conversationsLoading = ref(true);
     const isSettingsOpen = ref(false);
-    const users = ref<any[]>([]);
+    const users = ref<User[]>([]);
 
     const showNewChatModal = ref(false);
     const showGroupModal = ref(false);
@@ -205,8 +206,8 @@ export default defineComponent({
       await chatStore.loadConversations();
       chatStore.conversations.forEach((c) => chatStore.startListening(c.id));
       userStore.joinPresenceChannel();
-      const res = await api.get("/users");
-      users.value = res.data.data;
+      const res = await chatApi.fetchUsers({ limit: 100 });
+      users.value = res.data;
       conversationsLoading.value = false;
     });
 

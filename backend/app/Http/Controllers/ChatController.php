@@ -21,8 +21,13 @@ class ChatController extends Controller
     // List conversations for auth user
     public function conversations(Request $request)
     {
+        $request->validate([
+            'limit' => 'integer|min:1|max:100',
+            'after_id' => 'nullable|integer',
+        ]);
+
         $userId = auth()->id();
-        $limit = $request->get('limit', 20);
+        $limit = (int) $request->get('limit', 20);
         $afterId = $request->get('after_id'); // Cursor for pagination
 
         $query = auth()->user()
@@ -34,16 +39,8 @@ class ChatController extends Controller
             ->with(['users', 'lastMessage'])
             ->withCount([
                 'messages as unread_count' => function ($q) use ($userId) {
-                    // Get the timestamp of the last message this user read in each conversation
-                    // A message is unread if:
-                    // 1. It's from someone else (sender_id != userId)
-                    // 2. AND either:
-                    //    a. User has never read any message in this conversation, OR
-                    //    b. Message was created AFTER the user's last read message
-                    
                     $q->where('sender_id', '!=', $userId)
                         ->where(function ($subQ) use ($userId) {
-                            // Messages that don't have a read record for this user
                             $subQ->whereDoesntHave('readers', function ($r) use ($userId) {
                                 $r->where('user_id', $userId);
                             });
@@ -86,7 +83,8 @@ class ChatController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'user_ids' => 'required|array|min:1',
-            'avatar' => 'nullable|image|max:5120', // 5MB max
+            'user_ids.*' => 'exists:users,id',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
         $data = [
@@ -104,7 +102,7 @@ class ChatController extends Controller
 
         // Attach creator as admin
         $conversation->users()->attach($request->user()->id, ['is_admin' => true]);
-        
+
         // Attach other users as members
         if (!empty($request->user_ids)) {
             $conversation->users()->attach($request->user_ids, ['is_admin' => false]);
@@ -123,7 +121,7 @@ class ChatController extends Controller
         if (!empty($request->user_ids)) {
             $addedUsers = User::whereIn('id', $request->user_ids)->pluck('name');
             $text = auth()->user()->name . ' added ' . $addedUsers->join(', ', ' and ');
-            
+
             Message::create([
                 'conversation_id' => $conversation->id,
                 'sender_id' => auth()->id(),
@@ -134,7 +132,7 @@ class ChatController extends Controller
 
         // --- Broadcast to let others know they are in a new conversation ---
         $resource = new ConversationResource($conversation->load('users', 'lastMessage'));
-        
+
         foreach ($request->user_ids as $uid) {
             broadcast(new \App\Events\UserAddedToConversation($resource, $uid));
         }
@@ -150,6 +148,11 @@ class ChatController extends Controller
 
         $authUserId = $request->user()->id;
         $otherUserId = $request->user_id;
+
+        // Prevent creating a conversation with yourself
+        if ($authUserId == $otherUserId) {
+            return response()->json(['message' => 'Cannot create a conversation with yourself'], 422);
+        }
 
         // Check if a private conversation already exists
         $conversation = Conversation::where('type', 'private')
@@ -173,10 +176,27 @@ class ChatController extends Controller
     // Send message
     public function sendMessage(Request $request, $conversationId)
     {
+        // Verify user is a member of this conversation
+        $conversation = Conversation::findOrFail($conversationId);
+        if (!$conversation->users()->where('user_id', auth()->id())->exists()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $request->validate([
-            'message' => 'nullable|string',
+            'message' => 'nullable|string|max:5000',
             'file' => 'nullable|mimes:jpg,jpeg,png,gif,mp4,webm,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip,rar,7z,tar,weba,wav,m4a,mp3,oga,ogg,opus|max:51200', // 50MB
+            'reply_to_message_id' => 'nullable|integer|exists:messages,id',
         ]);
+
+        // Validate reply_to_message_id belongs to the same conversation
+        if ($request->filled('reply_to_message_id')) {
+            $replyMessage = Message::where('id', $request->reply_to_message_id)
+                ->where('conversation_id', $conversationId)
+                ->exists();
+            if (!$replyMessage) {
+                return response()->json(['message' => 'Reply message does not belong to this conversation'], 422);
+            }
+        }
 
         $data = [
             'conversation_id' => $conversationId,
@@ -223,12 +243,13 @@ class ChatController extends Controller
             };
 
             $data['file_path'] = $path;
-            $data['file_name'] = $file->getClientOriginalName();
-            $data['mime_type'] = $file->getMimeType();
+            $data['file_name'] = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)
+                . '.' . $file->getClientOriginalExtension();
+            $data['mime_type'] = $serverMime;
             $data['file_size'] = $file->getSize();
         }
 
-        // ❗ Ensure at least text or file exists
+        // Ensure at least text or file exists
         if (empty($data['message']) && !$request->hasFile('file')) {
             return response()->json([
                 'message' => 'Message or file is required'
@@ -241,27 +262,27 @@ class ChatController extends Controller
         broadcast(new MessageSent($message))->toOthers();
 
         // Send push notifications to other users in conversation
-        $conversation = Conversation::with('users')->find($conversationId);
+        $conversation->load('users');
         $recipients = $conversation->users->where('id', '!=', auth()->id());
-        
+
         $webPushService = new \App\Services\WebPushService();
         $sender = auth()->user();
-        
+
         foreach ($recipients as $recipient) {
             // Skip if user has Do Not Disturb enabled
             if ($recipient->isNotificationMuted()) {
                 continue;
             }
-            
-            $title = $conversation->type === 'group' 
-                ? $conversation->name 
+
+            $title = $conversation->type === 'group'
+                ? $conversation->name
                 : $sender->name;
-            
+
             // Respect message preview preference
-            $body = $recipient->notification_preview 
+            $body = $recipient->notification_preview
                 ? ($message->message ?? 'Sent a file')
                 : 'New message';
-            
+
             try {
                 $webPushService->sendToUser(
                     $recipient->id,
@@ -273,8 +294,7 @@ class ChatController extends Controller
                     ]
                 );
             } catch (\Exception $e) {
-                // Log but don't fail message sending if push fails
-                \Log::warning('Push notification failed', ['error' => $e->getMessage()]);
+                \Log::warning('Push notification failed for user ' . $recipient->id);
             }
         }
 
@@ -283,7 +303,18 @@ class ChatController extends Controller
 
     public function messages(Request $request, $conversationId)
     {
-        $limit = $request->get('limit', 30);
+        // Verify user is a member of this conversation
+        $conversation = Conversation::findOrFail($conversationId);
+        if (!$conversation->users()->where('user_id', auth()->id())->exists()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'limit' => 'integer|min:1|max:100',
+            'before_id' => 'nullable|integer',
+        ]);
+
+        $limit = (int) $request->get('limit', 30);
         $beforeId = $request->get('before_id');
 
         $query = Message::with(['sender', 'readers', 'reactions.user', 'replyTo.sender'])
@@ -318,19 +349,27 @@ class ChatController extends Controller
             'message_ids.*' => 'exists:messages,id',
         ]);
 
+        // Verify user is a member of this conversation
+        $conversation = Conversation::findOrFail($request->conversation_id);
+        if (!$conversation->users()->where('user_id', auth()->id())->exists()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $userId = auth()->id();
 
-        foreach ($request->message_ids as $messageId) {
-            DB::table('message_reads')->updateOrInsert(
-                [
-                    'message_id' => $messageId,
-                    'user_id' => $userId,
-                ],
-                [
-                    'read_at' => now(),
-                ]
-            );
-        }
+        DB::transaction(function () use ($request, $userId) {
+            foreach ($request->message_ids as $messageId) {
+                DB::table('message_reads')->updateOrInsert(
+                    [
+                        'message_id' => $messageId,
+                        'user_id' => $userId,
+                    ],
+                    [
+                        'read_at' => now(),
+                    ]
+                );
+            }
+        });
 
         broadcast(new MessageRead(
             $request->conversation_id,
@@ -346,6 +385,12 @@ class ChatController extends Controller
         $request->validate([
             'emoji' => 'required|string|max:10',
         ]);
+
+        // Verify user is a member of the message's conversation
+        $conversation = $message->conversation;
+        if (!$conversation->users()->where('user_id', auth()->id())->exists()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
         $userId = auth()->id();
 
@@ -386,27 +431,32 @@ class ChatController extends Controller
     // Fetch users for search with pagination
     public function users(Request $request)
     {
+        $request->validate([
+            'limit' => 'integer|min:1|max:100',
+            'after_id' => 'nullable|integer',
+        ]);
+
         $userId = auth()->id();
-        $limit = $request->get('limit', 20);
+        $limit = (int) $request->get('limit', 20);
         $afterId = $request->get('after_id');
-        
+
         $query = User::where('id', '!=', $userId)
             ->orderBy('name', 'asc');
-        
+
         // Apply cursor pagination
         if ($afterId) {
             $query->where('id', '>', $afterId);
         }
-        
+
         // Fetch one extra to check if there are more
         $users = $query->limit($limit + 1)->get();
-        
+
         // Check if there are more results
         $hasMore = $users->count() > $limit;
         if ($hasMore) {
             $users->pop(); // Remove the extra item
         }
-        
+
         return response()->json([
             'data' => UserResource::collection($users),
             'meta' => [
@@ -421,6 +471,11 @@ class ChatController extends Controller
         // Ensure it's a group
         if ($conversation->type !== 'group') {
             return response()->json(['message' => 'Cannot leave a private conversation'], 400);
+        }
+
+        // Verify user is a member of this conversation
+        if (!$conversation->users()->where('user_id', auth()->id())->exists()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         // 1. Create System Message (User left)
@@ -453,9 +508,16 @@ class ChatController extends Controller
             return response()->json(['message' => 'Cannot add members to a private conversation'], 400);
         }
 
-        // Check if auth user is admin (optional, based on frontend visibility)
-        // $isAdmin = $conversation->users()->where('user_id', auth()->id())->wherePivot('is_admin', true)->exists();
-        // if (!$isAdmin) { return response()->json(['message' => 'Unauthorized'], 403); }
+        // Check if auth user is a member of the conversation
+        if (!$conversation->users()->where('user_id', auth()->id())->exists()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Check if auth user is admin
+        $isAdmin = $conversation->users()->where('user_id', auth()->id())->wherePivot('is_admin', true)->exists();
+        if (!$isAdmin) {
+            return response()->json(['message' => 'Only admins can add members'], 403);
+        }
 
         // 2. Filter out users already in the group
         $existingIds = $conversation->users()->pluck('users.id')->toArray();
@@ -490,7 +552,7 @@ class ChatController extends Controller
         // 6. Broadcast
         // Broadcast message
         broadcast(new MessageSent($message))->toOthers();
-        
+
         // Broadcast user addition (so clients update member list)
         // We broadcast detailed user info so clients can just append it
         broadcast(new \App\Events\UserAddedToGroup($conversation->id, UserResource::collection($newUsers)))->toOthers();

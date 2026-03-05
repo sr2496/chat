@@ -1,18 +1,23 @@
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-gray-950 transition-colors duration-300">
-    <router-view />
-    <Toaster ref="toasterRef" />
-  </div>
+  <TooltipProvider :delay-duration="300">
+    <div class="min-h-screen bg-gray-100 dark:bg-gray-950 transition-colors duration-300">
+      <router-view />
+      <Toaster ref="toasterRef" />
+      <ConfirmDialog />
+    </div>
+  </TooltipProvider>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref, provide, onMounted } from 'vue'
-import { api } from './axios'
 import { useUserStore } from './stores/user'
+import * as chatApi from './services/chatApi'
 import Toaster from './components/Toaster.vue'
+import ConfirmDialog from './components/Design/ConfirmDialog.vue'
+import { TooltipProvider } from './components/ui/tooltip'
 
 export default defineComponent({
-  components: { Toaster },
+  components: { Toaster, ConfirmDialog, TooltipProvider },
 
   setup() {
     /* -----------------------------
@@ -32,9 +37,8 @@ export default defineComponent({
 
     onMounted(async () => {
       try {
-        const res = await api.get('/user') // Sanctum session check
-
-        userStore.setUser(res.data.data)
+        const user = await chatApi.fetchCurrentUser()
+        userStore.setUser(user)
       } catch {
         userStore.clearUser()
       }

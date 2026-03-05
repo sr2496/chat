@@ -109,10 +109,12 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, reactive, inject, nextTick } from 'vue';
-import { api, csrf } from '../axios';
+import { defineComponent, ref, reactive, nextTick } from 'vue';
+import { csrf } from '../axios';
+import * as chatApi from '../services/chatApi';
 import router from '../router';
 import { useUserStore } from '../stores/user';
+import { useToaster } from '../composables/useToaster';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 
@@ -127,7 +129,7 @@ export default defineComponent({
       password: '',
     });
 
-    const toaster = inject('toaster') as { value: any } | undefined;
+    const toaster = useToaster();
     const userStore = useUserStore();
 
     const validate = () => {
@@ -161,19 +163,17 @@ export default defineComponent({
 
         await csrf.get('/sanctum/csrf-cookie');
 
-        const response = await api.post('/login', {
-          email: email.value,
-          password: password.value
-        });
+        const res = await chatApi.login(email.value, password.value);
 
-        userStore.setUser(response.data.user);
+        userStore.setUser(res.user);
 
         await nextTick();
-        toaster?.value?.show('Login successful!', 'success');
+        toaster.success('Login successful!');
 
         router.push('/');
-      } catch (err: any) {
-        errors.password = err.response?.data?.message || 'Invalid email or password';
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { data?: { message?: string } } };
+        errors.password = axiosErr.response?.data?.message || 'Invalid email or password';
       } finally {
         NProgress.done();
       }

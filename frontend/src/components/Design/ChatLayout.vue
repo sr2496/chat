@@ -64,7 +64,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from "vue";
-import { useChatStore } from "../../stores/chat";
+import { useChatStore, chatEventBus } from "../../stores/chat";
 import ChatList from "./ChatList.vue";
 import ChatWindow from "./ChatWindow.vue";
 import { useUserStore } from "../../stores/user";
@@ -101,30 +101,35 @@ export default defineComponent({
             return userStore.isUserOnline(otherUser.id);
         });
 
+        const onNotification = (notification: Notification) => {
+            notificationToast.value?.show(notification);
+        };
+
+        const onSound = () => {
+            if (userStore.user?.notification_sound !== false) {
+                soundPlayer.play();
+            }
+        };
+
         onMounted(async () => {
             updateMobile();
             window.addEventListener("resize", updateMobile);
 
-            // Set up notification handler
-            (window as any).__chatNotificationHandler = (notification: Notification) => {
-                notificationToast.value?.show(notification);
-            };
-
-            // Set up sound handler
-            (window as any).__chatSoundHandler = () => {
-                // Check user preference for notification sound
-                if (userStore.user?.notification_sound !== false) {
-                    soundPlayer.play();
-                }
-            };
+            // Set up event bus listeners
+            chatEventBus.on('notification', onNotification);
+            chatEventBus.on('sound', onSound);
         });
 
         onUnmounted(() => {
             window.removeEventListener("resize", updateMobile);
 
-            // Clean up handlers
-            delete (window as any).__chatNotificationHandler;
-            delete (window as any).__chatSoundHandler;
+            // Clean up event bus listeners
+            chatEventBus.off('notification', onNotification);
+            chatEventBus.off('sound', onSound);
+
+            // Clean up ringtone
+            ringtonePlayer.pause();
+            ringtonePlayer.src = '';
         });
 
         const notificationToast = ref<InstanceType<typeof NotificationToast> | null>(null);
@@ -234,8 +239,8 @@ export default defineComponent({
                 currentPeerUser.value = target;
             } else {
                 // Try to find in conversations
-                const conv = chatStore.conversations.find(c => c.users?.some((u: any) => u.id === targetUserId));
-                const u = conv?.users?.find((u: any) => u.id === targetUserId);
+                const conv = chatStore.conversations.find(c => c.users?.some((u) => u.id === targetUserId));
+                const u = conv?.users?.find((u) => u.id === targetUserId);
                 currentPeerUser.value = u || { name: 'Calling...' };
             }
 

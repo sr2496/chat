@@ -9,7 +9,17 @@ class Message extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'conversation_id',
+        'sender_id',
+        'message',
+        'type',
+        'file_path',
+        'file_name',
+        'mime_type',
+        'file_size',
+        'reply_to_message_id',
+    ];
 
     public function conversation()
     {

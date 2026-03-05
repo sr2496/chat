@@ -1,7 +1,15 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
+interface EmojiSelection {
+  i: string; // the emoji character
+  n: string[]; // emoji names/aliases
+  r: string; // emoji shortcode
+  t: string; // skin tone
+  u: string; // unicode
+}
+
 interface EmojiPickerOptions {
-  onSelectEmoji?: (emoji: any) => void;
+  onSelectEmoji?: (emoji: EmojiSelection) => void;
 }
 
 export function useEmojiPicker(options: EmojiPickerOptions = {}) {
@@ -58,7 +66,7 @@ export function useEmojiPicker(options: EmojiPickerOptions = {}) {
   };
 
   // Handle emoji selection
-  const onSelectEmoji = (emoji: any) => {
+  const onSelectEmoji = (emoji: EmojiSelection) => {
     if (options.onSelectEmoji) {
       options.onSelectEmoji(emoji);
     }

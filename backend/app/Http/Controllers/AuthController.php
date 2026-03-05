@@ -12,9 +12,9 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name' => 'required',
+            'name' => 'required|string|max:50|min:2',
             'email' => 'required|email|unique:users',
-            'password' => 'required|min:6'
+            'password' => 'required|min:8'
         ]);
 
         $user = User::create([
@@ -32,6 +32,11 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
+
         if (!Auth::attempt($request->only('email', 'password'))) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }

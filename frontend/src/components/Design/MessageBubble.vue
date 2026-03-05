@@ -295,14 +295,15 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import UserAvatar from "./UserAvatar.vue";
+import type { Message } from "../../types/chat";
 
 const props = defineProps<{
   isGroup: boolean;
   isSent: boolean;
-  message?: any;
+  message?: Message | Record<string, unknown>;
   senderAvatar?: string;
-  setMessageRef: Function;
-  getMessageDay: Function;
+  setMessageRef: (id: number, el: HTMLElement | null) => void;
+  getMessageDay: (timestamp?: string) => string;
   isUploading?: boolean;
   uploadProgress?: number;
 }>();

@@ -10,7 +10,12 @@ class Conversation extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'name',
+        'type',
+        'created_by',
+        'avatar',
+    ];
 
     public function users()
     {

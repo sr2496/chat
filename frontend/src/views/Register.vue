@@ -104,10 +104,11 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, reactive, ref, inject, nextTick } from 'vue';
-import { api, csrf } from '../axios';
+import { defineComponent, reactive, ref, nextTick } from 'vue';
+import { csrf } from '../axios';
+import * as chatApi from '../services/chatApi';
 import router from '../router';
-
+import { useToaster } from '../composables/useToaster';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 
@@ -123,7 +124,7 @@ export default defineComponent({
       password: ''
     })
 
-    const toaster = inject('toaster') as { value: any } | undefined;
+    const toaster = useToaster();
 
 
     const validate = () => {
@@ -166,24 +167,21 @@ export default defineComponent({
 
         await csrf.get('/sanctum/csrf-cookie');
 
-        await api.post('/register', {
-          name: name.value,
-          email: email.value,
-          password: password.value
-        });
+        await chatApi.register(name.value, email.value, password.value);
 
         await nextTick();
-        toaster?.value?.show('Registration successful!', 'success');
+        toaster.success('Registration successful!');
 
         router.push('/login');
-      } catch (err: any) {
-        if (err.response?.data?.errors) {
-          const serverError = err.response.data.errors;
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+        if (axiosErr.response?.data?.errors) {
+          const serverError = axiosErr.response.data.errors;
           errors.name = serverError.name?.[0] || '';
           errors.email = serverError.email?.[0] || '';
           errors.password = serverError.password?.[0] || '';
         } else {
-          errors.password = err.response?.data?.message || 'Registration failed';
+          errors.password = axiosErr.response?.data?.message || 'Registration failed';
         }
       } finally {
         NProgress.done();

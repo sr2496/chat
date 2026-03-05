@@ -1,13 +1,18 @@
 import { defineStore } from 'pinia';
-import { api } from '../axios';
-import {echo} from '../echo';
+import { echo } from '../echo';
+import type { User } from '../types/chat';
+import * as chatApi from '../services/chatApi';
+
+interface PresenceUser {
+  id: number;
+  name: string;
+}
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    user: null as any | null,
+    user: null as User | null,
     isLoading: true,
 
-    // 🔵 presence
     onlineUsers: new Set<number>(),
     presenceJoined: false,
   }),
@@ -21,7 +26,7 @@ export const useUserStore = defineStore('user', {
   },
 
   actions: {
-    setUser(u: any) {
+    setUser(u: User) {
       this.user = u;
       this.isLoading = false;
     },
@@ -36,17 +41,17 @@ export const useUserStore = defineStore('user', {
       this.presenceJoined = true
 
       echo.join('presence-chat')
-        .here((users: any[]) => {
+        .here((users: PresenceUser[]) => {
           this.onlineUsers = new Set(users.map(u => u.id))
         })
-        .joining((user: any) => {
+        .joining((user: PresenceUser) => {
           this.onlineUsers.add(user.id)
-
         })
-        .leaving((user: any) => {
+        .leaving((user: PresenceUser) => {
           this.onlineUsers.delete(user.id)
         })
     },
+
     leavePresenceChannel() {
       if (!this.presenceJoined) return
 
@@ -57,7 +62,7 @@ export const useUserStore = defineStore('user', {
 
     async logout() {
       try {
-        await api.post('/logout')
+        await chatApi.logout()
       } catch (e) {
         console.error('Logout failed:', e)
       } finally {
@@ -67,17 +72,9 @@ export const useUserStore = defineStore('user', {
     },
 
     async updateProfile(data: { name?: string; avatar?: File }) {
-      const formData = new FormData();
-      if (data.name) formData.append('name', data.name);
-      if (data.avatar) formData.append('avatar', data.avatar);
-      
-      const response = await api.post('/user/profile', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      // Backend returns UserResource directly, so user data is in response.data.data
-      this.user = response.data.data;
-      return response.data.data;
+      const user = await chatApi.updateProfile(data);
+      this.user = user;
+      return user;
     },
   }
 

@@ -213,11 +213,14 @@
 <script setup lang="ts">
 // Same script as before — no changes needed
 // (All your existing logic remains 100% intact)
-import { ref, watch, nextTick, computed, onMounted } from 'vue';
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue';
 import EmojiPicker from 'vue3-emoji-picker';
 import { useEmojiPicker } from '../../composables/useEmojiPicker';
+import { useToaster } from '../../composables/useToaster';
 
 import { useTheme } from '../../composables/useTheme';
+
+const toaster = useToaster();
 
 const props = defineProps<{
   replyingTo?: {
@@ -280,11 +283,26 @@ const autoResize = () => {
 
 watch(inputText, () => nextTick(autoResize));
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB, matches backend
+
 const handleFileSelect = (e: Event) => {
   const input = e.target as HTMLInputElement;
   if (!input.files?.length) return;
 
-  const newFiles = Array.from(input.files).map(file => ({
+  const validFiles = Array.from(input.files).filter(file => {
+    if (file.size > MAX_FILE_SIZE) {
+      toaster.warning(`File "${file.name}" exceeds 50MB limit.`);
+      return false;
+    }
+    return true;
+  });
+
+  if (validFiles.length === 0) {
+    input.value = '';
+    return;
+  }
+
+  const newFiles = validFiles.map(file => ({
     file,
     type: file.type,
     preview: file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : undefined
@@ -333,7 +351,7 @@ const sendMessage = () => {
 
 // Composable
 const emoji = useEmojiPicker({
-  onSelectEmoji: (emoji: any) => {
+  onSelectEmoji: (emoji: { i: string }) => {
     inputText.value += emoji.i;
     nextTick(() => {
       textareaRef.value?.focus();
@@ -357,6 +375,28 @@ onMounted(() => {
     textareaRef.value?.focus();
     autoResize();
   });
+});
+
+onUnmounted(() => {
+  // Clean up audio resources
+  previewAudio.pause();
+  previewAudio.onended = null;
+  previewAudio.ontimeupdate = null;
+  previewAudio.src = '';
+
+  // Clean up timer
+  if (timerInterval) clearInterval(timerInterval);
+
+  // Clean up media recorder and streams
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    mediaRecorder.stream?.getTracks().forEach(track => track.stop());
+  }
+
+  // Revoke blob URLs
+  if (recordedAudio.value) {
+    URL.revokeObjectURL(recordedAudio.value.url);
+  }
 });
 
 // Watch for when component becomes visible and reset height
